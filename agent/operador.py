@@ -186,6 +186,18 @@ def _json(texto: str) -> dict:
         return {}
 
 
+def _abreviar(resultado: str, tope: int = 1500) -> str:
+    """Un resultado largo para el registro: se corta en un fin de línea y se dice que está cortado.
+
+    Sin el aviso, quien revisa el registro toma la última fila a medias por una lectura defectuosa.
+    """
+    if len(resultado) <= tope:
+        return resultado
+    corte = resultado[:tope]
+    corte = corte.rsplit("\n", 1)[0] if "\n" in corte else corte
+    return corte + "\n[... sigue: el registro solo muestra el comienzo; la herramienta trabajó con el resultado completo]"
+
+
 def _entero(valor) -> int | None:
     """Un número de turno tal como lo manda el modelo (a veces como texto). None si no lo es."""
     try:
@@ -723,7 +735,7 @@ class Operador:
                     hubo_clic = hubo_clic or nombre == "clic"
                     if nombre in ("clic", "tecla", "escribir", "rueda"):
                         self.sin_efecto = self.sin_efecto + 1 if "NO cambió" in resultado else 0
-                    self.bitacora.append(f"{paso}. {nombre} {json.dumps(args, ensure_ascii=False)} → {resultado[:1500]}")
+                    self.bitacora.append(f"{paso}. {nombre} {json.dumps(args, ensure_ascii=False)} → {_abreviar(resultado)}")
                 self.traza.evento(paso=paso, accion=nombre, args=args, resultado=resultado[:3000])
                 resultados.append({"role": "tool", "tool_call_id": llamada["id"], "content": resultado})
             mensajes.extend(resultados)

@@ -97,3 +97,13 @@ def test_unknown_turn_is_ignored():
 def test_turn_number_parsing():
     assert _entero(6) == 6 and _entero("6") == 6
     assert _entero(None) is None and _entero("la de la lista") is None
+
+
+def test_a_long_result_is_cut_at_a_line_break_and_says_so():
+    from agent.operador import _abreviar
+
+    tabla = "67 filas en 4 página(s)\n" + "\n".join(f"F-{n:04d}\tCliente de prueba\t01/01/2026\tVencida" for n in range(200))
+    corto = _abreviar(tabla)
+    assert len(corto) < 1700 and "sigue" in corto.splitlines()[-1]
+    assert corto.splitlines()[-2].endswith("Vencida")  # ninguna fila queda a medias
+    assert _abreviar("la pantalla cambió") == "la pantalla cambió"
