@@ -73,4 +73,15 @@ async def replay(recipe: Recipe, spec: dict, driver: Driver) -> tuple[ReplayResu
             return stop(f"paso de tipo desconocido: {first.kind}")
         done += len(action)
         await driver.settle()
-    return ReplayResult(True, done), executed
+    return ReplayResult(True, done, reason=describe(executed)), executed
+
+
+def describe(steps: list[Step]) -> str:
+    """What the replay did, in words the operator can check against the screen."""
+    parts = []
+    for step in steps:
+        if step.kind in ("click", "double_click"):
+            parts.append(f"clic en «{step.label}»" if step.label else f"clic en ({step.x}, {step.y})")
+        elif step.kind == "type":
+            parts.append(f"escribió el dato «{step.slot}»")
+    return "hizo: " + ", ".join(parts) if parts else ""

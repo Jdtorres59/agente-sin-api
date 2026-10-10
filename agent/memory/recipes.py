@@ -8,7 +8,10 @@ operator's gates, review and verification. The rules are structural, not about t
 - Steps are grouped into actions. A fill is click + ctrl+a + type, which is what the operator emits.
 - A typed text must map to a TaskSpec slot (a value or the referent); otherwise the text was
   specific to that task and the recipe stops there.
-- Once fields were filled, the next lone click may be the save, so the recipe stops there.
+- Once fields were filled, the next lone click may be the save, so the recipe stops there. If that
+  click came after a single fill, the fill was a search waiting for its button: it is dropped too,
+  so the operator never lands on a half-done search it did not start (measured 13:55: it skipped
+  reading the results and the verifier sent it back).
 - Only Tab and Shift+Tab are replayed among keys. Enter can submit a form.
 - In modifications, only the search by referent is filled: editing a field of an existing record
   must go through the operator, so the recovery journal records its previous value.
@@ -87,6 +90,7 @@ def safe_prefix(trace: list[Step], spec: dict) -> list[Step]:
         return []
     out: list[Step] = []
     filled = False
+    block_start, block_fills = 0, 0  # the run of fills at the end of `out`
     previous: Step | None = None
     for action in group_actions(trace):
         if any(getattr(s, "gated", False) for s in action):
@@ -99,9 +103,14 @@ def safe_prefix(trace: list[Step], spec: dict) -> list[Step]:
                 break
             if len(action) == 3 and first.anchor_png is None:
                 break
+            if block_fills == 0:
+                block_start = len(out)
             out.extend(action[:-1] + [replace(typed, slot=slot)])
             filled = True
+            block_fills += 1
         elif first.kind in ("click", "double_click"):
+            if filled and block_fills == 1:
+                del out[block_start:]  # a lone fill followed by a click is a search: leave it whole to the operator
             if filled or first.anchor_png is None:
                 break
             # A click that changed nothing, right before the same click again, was a retry.

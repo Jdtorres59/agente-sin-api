@@ -1,8 +1,9 @@
 """Canario: detecta si la app cambió (el incidente de las 15:30) comparando píxeles, sin modelo.
 
 Cada ronda resetea NUESTRO escritorio de práctica, toma la pantalla inicial y la compara con la
-base guardada. Tras un reset la pantalla inicial es idéntica al píxel, así que cualquier región que
-cambie más que el cursor es un cambio de la app. Cuando lo hay: alerta ruidosa (campana, banner y
+base guardada. Tras un reset la pantalla inicial es idéntica al píxel (el cliente RFB pide el
+puntero aparte, así que la flecha no sale en la captura), de modo que cualquier región que cambie es
+un cambio de la app: un menú renombrado mueve ~230 píxeles. Cuando lo hay: alerta ruidosa (campana, banner y
 notificación de macOS), imágenes con las regiones marcadas y una línea con hora en log.jsonl.
 
 Uso:
@@ -34,7 +35,7 @@ CARPETA = RAIZ / "runs" / "canary"
 PIXEL = 40           # diferencia por canal que cuenta como píxel cambiado
 CELDA = 16           # las regiones se reportan en celdas de 16x16 px
 MIN_PX_CELDA = 4     # píxeles cambiados para marcar una celda
-RUIDO_PX = 400       # menos que esto (un cursor) no es un cambio de la app
+RUIDO_PX = 50        # menos que esto es ruido de dibujo, no un cambio de la app
 BANDA = 64           # barras de título y menú
 
 

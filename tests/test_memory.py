@@ -240,3 +240,23 @@ def test_notes_give_route_and_field_map(tmp_path):
     notes = m.notes(app)
     assert "menú Registros → botón Nuevo" in notes
     assert "«Nombre» en (400, 200)" in notes and "1 de 1" in notes
+
+
+def test_lone_search_fill_before_a_click_is_left_to_the_operator():
+    spec = {"tipo": "crear", "entidad": "proveedor", "valores": {"NIT": "900111222", "Nombre": "Acme"}}
+    trace = [
+        Step("click", 100, 60, anchor_png=anchor(HOME, 100, 60), screen_changed_px=9000, label="menú Registros"),
+        Step("click", 300, 120, anchor_png=anchor(LIST, 300, 120), screen_changed_px=100),
+        Step("key", key="ctrl+a"),
+        Step("type", text="900111222", slot="NIT", screen_changed_px=100),
+        Step("click", 360, 120, anchor_png=anchor(LIST, 360, 120), screen_changed_px=5000, label="Buscar"),
+    ]
+    steps = safe_prefix(trace, spec)
+    assert [s.kind for s in steps] == ["click"]
+
+
+def test_replay_reports_what_it_did(tmp_path):
+    m = memory(tmp_path)
+    recipe = Recipe("app-x", "crear:proveedor", 1, safe_prefix(creation_trace(), SPEC))
+    result = asyncio.run(m.replay(recipe, SPEC, app_driver()))
+    assert "clic en «menú Registros»" in result.reason and "escribió el dato «ciudad»" in result.reason
