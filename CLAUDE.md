@@ -65,7 +65,13 @@ tu humano para que lo coordine. Si tu tarea parece requerir tocar un archivo aje
   en `agent/core.py`. `deadline` es `time.monotonic()` + 270 s; el núcleo debe terminar antes.
 - El operador agrega un `Step` por acción a `TaskResult.steps`, con `anchor_png` (recorte 48×48
   alrededor del clic, **antes** de actuar), `slot` (de qué campo del `TaskSpec` salió el texto) y
-  `screen_changed_px`. Sin eso la memoria no puede aprender.
+  `screen_changed_px`. Sin eso la memoria no puede aprender. Desde las 13:50 `Step` tiene dos campos
+  opcionales: `label` (el «objetivo» que dio el modelo, para el mapa de la app en las notas) y `gated`
+  (la acción pasó por la compuerta de cambio; la memoria nunca la repite).
+- Memoria: `from agent.memory import get_memory` (SQLite en `MEMORY_DB`; apagada salvo `MEMORY=on`, o `SQLiteMemory(ruta)` directo en evals). Solo
+  aprende de resultados `terminada` y verificados; en evals, marca `verified=False` si `__check` no pasó
+  antes de llamar `learn`. Las recetas solo navegan y llenan campos del `TaskSpec`: se detienen antes
+  de cualquier clic que pueda guardar, y antes de editar campos de un registro existente.
 - Hook de memoria en el núcleo: tras la primera captura, `app_id = memory.fingerprint(img)`;
   `recipe = memory.find_recipe(app_id, spec)`; si hay receta, `await memory.replay(recipe, spec, driver)`;
   si `ok` es falso, el operador sigue con el modelo desde el estado actual. `memory.notes(app_id)` se
@@ -79,6 +85,8 @@ uv sync                                  # instalar dependencias
 cp .env.example .env                     # y llenar los valores (nunca subir .env)
 uv run python -m evals.run               # harness principal (Juanes)
 uv run uvicorn service.api:app --port 8000   # servicio local (Juanda)
+uv run python -m evals.curve --n 4           # curva de aprendizaje: sin memoria vs con memoria (Juanda)
+uv run python -m evals.canary --cada 20      # canario del incidente (Juanda; no correr junto con evals)
 ```
 
 ## Reglas

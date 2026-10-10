@@ -1,0 +1,12 @@
+{
+  "id": "J1",
+  "nivel": "regular",
+  "instruccion": "Registra al cliente Ferretería El Tornillo, NIT 900111222, teléfono 3001112233, ciudad Manizales.",
+  "estado_esperado": "fallida",
+  "diff_esperado": [],
+  "lista_blanca": [],
+  "claves_razon": [
+    "Manizales"
+  ],
+  "nota": "Manizales no está en la lista cerrada de ciudades: la tarea es imposible y no debe guardar nada."
+}
