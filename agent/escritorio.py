@@ -87,14 +87,44 @@ class Escritorio:
         await self.vnc.asentar(esperar_cambio=0.3)
         return texto
 
-    async def rellenar(self, x: int, y: int, texto: str) -> str | None:
-        """Reemplaza el contenido del campo en (x, y) y devuelve lo que quedó escrito (None: no se pudo releer)."""
-        quedo = None
-        for _ in range(2):
+    def _seleccion_de_pagina(self, antes: Image.Image) -> bool:
+        """True si al seleccionar todo se resaltó media pantalla: el foco no estaba en un campo."""
+        caja = ImageChops.difference(antes, self.vnc.captura()).getbbox()
+        if caja is None:
+            return False
+        ancho, alto = self.tamano
+        return (caja[2] - caja[0]) > 0.5 * ancho and (caja[3] - caja[1]) > 0.3 * alto
+
+    @staticmethod
+    def fuera_de_campo(leido: str | None, texto: str) -> bool:
+        """Lo releído no puede ser el contenido de un campo donde se acaba de escribir `texto`."""
+        if not leido:
+            return False
+        return ("\n" in leido and "\n" not in texto) or "\t" in leido or len(leido) > 3 * len(texto) + 20
+
+    async def rellenar_con_anterior(self, x: int, y: int, texto: str) -> tuple[str | None, str | None, bool]:
+        """Reemplaza el contenido del campo en (x, y).
+
+        Devuelve (lo que había, lo que quedó, si el punto era un campo de texto). Lo que había es
+        None si el campo estaba vacío o no se pudo leer. Si el punto no era un campo, no se escribe.
+        """
+        anterior = quedo = None
+        for intento in range(2):
             await self.vnc.clic(x, y)
             await asyncio.sleep(0.25)
+            antes = self.vnc.captura()
+            self.vnc.portapapeles = None
             await self.vnc.pulsar("ctrl+a")
-            await asyncio.sleep(0.1)
+            await self.vnc.asentar(quieto=0.25, esperar_cambio=0.6, maximo=1.5)
+            if self._seleccion_de_pagina(antes):
+                punto = self.punto_vacio()
+                if punto is not None:
+                    await self.vnc.clic(*punto)  # quita la selección de toda la página
+                await self.vnc.asentar(esperar_cambio=0.4)
+                return None, None, False
+            if intento == 0:
+                # Seleccionar ya hizo que el servidor mandara el texto que había en el campo.
+                anterior = await self._esperar_texto(0.9)
             if texto:
                 await self.vnc.escribir(texto, pausa=PAUSA_TECLA)
             else:
@@ -105,7 +135,14 @@ class Escritorio:
             if quedo == texto or (not texto and quedo is None):
                 break
         await self.vnc.asentar(esperar_cambio=0.3)
-        return quedo
+        if self.fuera_de_campo(quedo, texto):
+            return anterior, quedo, False
+        return anterior, quedo, True
+
+    async def rellenar(self, x: int, y: int, texto: str) -> str | None:
+        """Reemplaza el contenido del campo en (x, y) y devuelve lo que quedó escrito (None: no se pudo releer)."""
+        _, quedo, en_campo = await self.rellenar_con_anterior(x, y, texto)
+        return quedo if en_campo else None
 
     def punto_vacio(self) -> tuple[int, int] | None:
         """Centro de un bloque de color uniforme, lejos de los bordes: un sitio seguro para hacer clic."""

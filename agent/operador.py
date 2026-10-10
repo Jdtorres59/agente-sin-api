@@ -13,6 +13,7 @@ from . import prompts
 from .contracts import Step
 from .escritorio import Escritorio
 from .modelos import Modelos, imagen_a_url
+from .recuperacion import Diario, recuperar
 from .tablas import Tabla
 from .traza import Traza
 
@@ -156,6 +157,7 @@ class Operador:
         spec: dict | None = None,
         notas: str = "",
         aviso_inicial: str = "",
+        recuperable: bool = True,
     ):
         self.tarea = tarea
         self.esc = escritorio
@@ -177,6 +179,8 @@ class Operador:
         self.escalar = False  # el próximo turno lo decide el supervisor
         self.tabla: Tabla | None = None
         self.evidencia = None  # captura tomada justo después del último cambio de datos
+        self.diario = Diario()  # valor anterior exacto de cada campo editado, para poder restaurarlo
+        self.recuperable = recuperable  # el sub-operador de una reversión no vuelve a recuperar
 
     def _quedan(self) -> float:
         return self.limite - time.monotonic()
@@ -259,11 +263,16 @@ class Operador:
                 hubo = await self.esc.tecla(a["combinacion"])
             self.evidencia = await self.esc.captura()
             self.traza.captura(900 + self.confirmaciones, self.evidencia)
+            self.diario.cambio_confirmado(descripcion, a.get("x"), a.get("y"), self.evidencia, self.paso)
             return cambio(hubo)
         if nombre == "clic":
             return cambio(await self.esc.clic(a["x"], a["y"], veces=a.get("veces", 1)))
         if nombre == "rellenar":
-            quedo = await self.esc.rellenar(a["x"], a["y"], a["texto"])
+            anterior, quedo, en_campo = await self.esc.rellenar_con_anterior(a["x"], a["y"], a["texto"])
+            if not en_campo:
+                return "NO ejecutada: el punto no está dentro de un campo de texto. Apunta al centro del campo."
+            self.diario.antes_de_rellenar(a["x"], a["y"], a.get("campo", ""), anterior, a["texto"])
+            self.diario.despues_de_rellenar(quedo)
             aviso = "" if a["texto"] in self.tarea else " Aviso: ese texto no aparece literal en la tarea."
             if quedo is None and a["texto"]:
                 return "no se pudo releer el campo (¿el punto está dentro de un campo de texto?). Míralo en la captura." + aviso
@@ -379,6 +388,26 @@ class Operador:
         }
 
     async def correr(self) -> Cierre:
+        cierre = await self._bucle()
+        if self.recuperable and cierre.estado == "fallida" and self.diario.hay_cambios:
+            # Se rindió con cambios ya aplicados: diagnosticar y, si no deberían existir, restaurar.
+            try:
+                cierre = await recuperar(
+                    cierre, self.diario, self.esc, self.modelos, self.traza, self.limite,
+                    navegar=self._sub_operador, tarea=self.tarea,
+                )  # fmt: skip
+            except Exception as error:  # la recuperación nunca debe tumbar el reporte
+                self.traza.evento(accion="recuperacion_error", tipo=type(error).__name__, detalle=str(error)[:300])
+        return cierre
+
+    async def _sub_operador(self, instruccion: str, limite: float) -> Cierre:
+        """Operador acotado para una reversión: misma pantalla, otra tarea, sin volver a recuperar."""
+        sub = Operador(instruccion, self.esc, self.modelos, self.traza, limite, recuperable=False)
+        cierre = await sub.correr()
+        self.steps.extend(sub.steps)
+        return cierre
+
+    async def _bucle(self) -> Cierre:
         ancho, alto = self.esc.tamano
         sistema = prompts.OPERADOR.format(ancho=ancho, alto=alto, pasos=MAX_PASOS, segundos=int(self._quedan()))
         if self.notas:
