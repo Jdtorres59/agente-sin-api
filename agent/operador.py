@@ -135,6 +135,11 @@ HERRAMIENTAS = [
             "hechos": {"type": "string", "description": "Qué hiciste, con identificadores."},
             "respuesta": {"type": "string", "description": "Solo si la tarea es una pregunta: el valor."},
             "razon": {"type": "string", "description": "Solo si falla: los datos concretos que lo explican."},
+            "evidencia_turno": {
+                "type": "integer",
+                "description": "Opcional: número del turno cuya captura muestra lo que reportas, cuando eso solo se "
+                "vio en una captura (por ejemplo, las opciones de una lista desplegable abierta).",
+            },
         },
         ["estado", "hechos"],
     ),
@@ -151,6 +156,7 @@ class Cierre:
     confirmaciones: int = 0
     verificado: bool = False
     bitacora: list[str] = field(default_factory=list)
+    evidencia_turno: int | None = None  # turno cuya captura el operador señala como evidencia
 
 
 def _json(texto: str) -> dict:
@@ -159,6 +165,14 @@ def _json(texto: str) -> dict:
         return json.loads(encontrado.group(0)) if encontrado else {}
     except json.JSONDecodeError:
         return {}
+
+
+def _entero(valor) -> int | None:
+    """Un número de turno tal como lo manda el modelo (a veces como texto). None si no lo es."""
+    try:
+        return int(valor)
+    except (TypeError, ValueError):
+        return None
 
 
 class Operador:
@@ -196,6 +210,7 @@ class Operador:
         self.costo_punto = 0  # comprobaciones de qué hay bajo el punto de un clic
         self.tabla: Tabla | None = None
         self.evidencia = None  # captura tomada justo después del último cambio de datos
+        self.capturas: dict[int, str] = {}  # la captura que el operador vio en cada turno, ya codificada
         self.diario = Diario()  # valor anterior exacto de cada campo editado, para poder restaurarlo
         self.recuperable = recuperable  # el sub-operador de una reversión no vuelve a recuperar
 
@@ -204,27 +219,35 @@ class Operador:
 
     # --- supervisor ----------------------------------------------------------------------
 
-    async def _consultar_supervisor(self, instrucciones: str, pregunta: str, con_evidencia: bool = False) -> dict:
+    async def _consultar_supervisor(
+        self, instrucciones: str, pregunta: str, con_evidencia: bool = False, turno: int | None = None
+    ) -> dict:
         captura = await self.esc.captura()
         contexto = (
             f"TAREA: {self.tarea}\n\nREGISTRO DE ACCIONES (más reciente al final):\n"
             + "\n".join(self.bitacora[-40:])
             + f"\n\n{pregunta}"
         )
-        imagenes = [{"type": "image_url", "image_url": {"url": imagen_a_url(captura)}}]
+        imagenes: list[tuple[str, str]] = []  # (qué muestra, imagen codificada), en el orden en que se envían
         if con_evidencia and self.evidencia is not None:
-            contexto += (
-                "\n\nIMAGEN 1: pantalla justo después del último cambio de datos (los avisos pueden ser pasajeros)."
-                "\nIMAGEN 2: pantalla actual."
-            )
-            imagenes.insert(0, {"type": "image_url", "image_url": {"url": imagen_a_url(self.evidencia)}})
+            antes = "pantalla justo después del último cambio de datos (los avisos pueden ser pasajeros)"
+            imagenes.append((antes, imagen_a_url(self.evidencia)))
+        if turno in self.capturas:
+            senalada = f"captura que el operador vio al empezar el turno {turno} y que señala como evidencia"
+            imagenes.append((senalada, self.capturas[turno]))
+        imagenes.append(("pantalla actual", imagen_a_url(captura)))
+        if len(imagenes) > 1:
+            contexto += "\n\n" + "\n".join(f"IMAGEN {n}: {que}." for n, (que, _) in enumerate(imagenes, 1))
         mensaje = await self.modelos.chat(
             self.supervisor,
             [
                 {"role": "system", "content": instrucciones},
                 {
                     "role": "user",
-                    "content": [{"type": "text", "text": contexto}, *imagenes],
+                    "content": [
+                        {"type": "text", "text": contexto},
+                        *({"type": "image_url", "image_url": {"url": url}} for _, url in imagenes),
+                    ],
                 },
             ],
             max_tokens=2000,
@@ -251,6 +274,7 @@ class Operador:
             f"EL OPERADOR REPORTA: estado={cierre.estado}; hechos={cierre.hechos}; "
             f"respuesta={cierre.respuesta or '-'}; razon={cierre.razon or '-'}",
             con_evidencia=True,
+            turno=cierre.evidencia_turno,
         )
         return bool(veredicto.get("conforme")), str(veredicto.get("problema", ""))
 
@@ -482,12 +506,13 @@ class Operador:
     async def _observacion(self, texto: str, paso: int) -> dict:
         captura = await self.esc.captura()
         self.traza.captura(paso, captura)
+        self.capturas[paso] = imagen_a_url(captura)
         pie = f"\nTurno {paso} de {MAX_PASOS}. Quedan {int(self._quedan())} s. Captura actual adjunta."
         return {
             "role": "user",
             "content": [
                 {"type": "text", "text": texto + pie},
-                {"type": "image_url", "image_url": {"url": imagen_a_url(captura)}},
+                {"type": "image_url", "image_url": {"url": self.capturas[paso]}},
             ],
         }
 
@@ -568,6 +593,7 @@ class Operador:
                         hechos=args.get("hechos", ""),
                         respuesta=args.get("respuesta", "") or "",
                         razon=args.get("razon", "") or "",
+                        evidencia_turno=_entero(args.get("evidencia_turno")),
                     )
                     resultado = "recibido"
                     cortar = True

@@ -39,11 +39,12 @@ AL CAMBIAR DATOS
 - Usa `rellenar` para campos de texto: reemplaza el contenido y te dice qué quedó escrito.
 - Las listas desplegables se abren con un clic y la opción se elige con otro clic.
 - Las opciones de una lista desplegable se leen en la captura que sigue al clic que la abre; `leer_pantalla` \
-la cerraría. Ábrela una sola vez. Si la tarea trae un valor para una lista, revisa esa lista antes de llenar \
-los demás campos.
+la cerraría. Esa captura ya es la lectura: ábrela una sola vez y recuerda el número de ese turno. Si la tarea \
+trae un valor para una lista, revisa esa lista antes de llenar los demás campos.
 - Si una lista cerrada no trae el valor que pide la tarea, ese valor no se puede registrar: la tarea es \
 imposible. No elijas otra opción \"por ahora\" ni guardes: cierra la lista, sal del formulario sin guardar y \
-termina con \"fallida\" nombrando el valor que falta y las opciones que sí hay.
+termina con \"fallida\" nombrando el valor que falta y las opciones que sí hay. No intentes forzarlo \
+escribiendo con el teclado sobre la lista ni recorriéndola con flechas: eso deja elegida otra opción.
 - Lee completo todo diálogo o ventana emergente antes de responderlo.
 - Toda acción que guarda, crea, elimina, confirma, exporta o revierte algo lleva `cambia_datos: true`. Hazla \
 una sola vez. Si después no sabes si se aplicó, verifica buscando el registro; nunca la repitas a ciegas.
@@ -63,6 +64,8 @@ AL TERMINAR
 número). Si piden dos datos: "dato 1; dato 2" en el orden en que se preguntan.
 - En `hechos` cuenta qué hiciste, con identificadores. En `razon` (solo si falla) nombra los datos concretos \
 que lo explican: identificadores, documentos, valores, fechas.
+- Si lo que reportas solo se vio en una captura y no en texto leído (por ejemplo, las opciones de una lista \
+abierta), pon en `evidencia_turno` el número del turno de esa captura.
 - Nunca escribas contraseñas ni tokens en ningún campo.
 
 RITMO
@@ -111,6 +114,9 @@ registro, la lista o un historial de la aplicación muestre el resultado.
 - Crear un registro nuevo no exige probar antes que no existía, salvo que haya indicios de que ya existe.
 - Para una exportación o un reporte basta con que los filtros visibles sean los pedidos y exista la confirmación; \
 no exijas recorrer todas las páginas ni comprobar formatos que la tarea no menciona.
+- Lo que se ve en una captura cuenta como observado. Las opciones de una lista desplegable solo se ven en una \
+captura con la lista abierta: si el operador señala esa captura, léelas ahí y no exijas texto leído ni recorrer \
+la lista opción por opción.
 
 Responde SOLO con JSON: {"conforme": true|false, "problema": "qué falta o qué está mal, en una frase"}.
 """
@@ -120,6 +126,11 @@ Eres el supervisor de un operador que maneja una aplicación de gestión descono
 repite lo mismo o sus acciones no tienen efecto. Con la tarea, el registro de acciones y la pantalla actual, \
 dile qué está pasando y cuál es la siguiente acción concreta (qué control y dónde está en la pantalla). No \
 propongas lo que ya falló. Si la tarea resulta imposible con lo que se ve, dilo.
+
+Nunca aconsejes escribir con el teclado sobre una lista desplegable de opciones fijas, recorrerla con flechas \
+ni elegir una opción distinta de la que pide la tarea: eso cambia el valor elegido. Si la lista abierta no \
+muestra el valor pedido, ese valor no se puede registrar: aconseja cerrar la lista, salir sin guardar y \
+terminar con "fallida" nombrando el valor que falta y las opciones que sí se ven.
 
 Responde SOLO con JSON: {"consejo": "dos frases como máximo"}.
 """
