@@ -65,7 +65,7 @@ tu humano para que lo coordine. Si tu tarea parece requerir tocar un archivo aje
   en `agent/core.py`. `deadline` es `time.monotonic()` + 270 s; el núcleo debe terminar antes.
 - El operador agrega un `Step` por acción a `TaskResult.steps`, con `anchor_png` (recorte 48×48
   alrededor del clic, **antes** de actuar), `slot` (de qué campo del `TaskSpec` salió el texto) y
-  `screen_changed_px`. Sin eso la memoria no puede aprender. Desde las 13:50 `Step` tiene dos campos
+  `screen_changed_px`. Sin eso la memoria no puede aprender. Desde las 13:30 `Step` tiene dos campos
   opcionales: `label` (el «objetivo» que dio el modelo, para el mapa de la app en las notas) y `gated`
   (la acción pasó por la compuerta de cambio; la memoria nunca la repite).
 - Memoria: `from agent.memory import get_memory` (SQLite en `MEMORY_DB`; apagada salvo `MEMORY=on`, o `SQLiteMemory(ruta)` directo en evals). Solo

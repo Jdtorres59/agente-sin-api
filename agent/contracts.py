@@ -42,7 +42,7 @@ class Step:
     anchor_png: bytes | None = None  # 48x48 PNG crop around (x, y), taken BEFORE acting
     screen_changed_px: int = 0       # changed pixels after settle()
     model: str | None = None         # model that chose the action; None if replayed from a recipe
-    # Added 13:50 with defaults, so older callers keep working:
+    # Added 13:30 with defaults, so older callers keep working:
     label: str | None = None         # what the model said it was clicking ("objetivo"), for the app map
     gated: bool = False              # went through the change gate (save/confirm/export): never replayed
 
@@ -58,7 +58,7 @@ class TaskResult:
     verified: bool = False           # clean-context verification confirmed the outcome
     spec: dict = field(default_factory=dict)  # the TaskSpec used (tipo, referente, valores, ...)
     app_id: str | None = None        # Memory.fingerprint of the app, if computed
-    feedback: list[str] = field(default_factory=list)  # verifier objections met before closing (added 14:05)
+    feedback: list[str] = field(default_factory=list)  # verifier objections met before closing (added 13:50)
 
 
 @dataclass

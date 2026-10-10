@@ -10,7 +10,7 @@ operator's gates, review and verification. The rules are structural, not about t
   specific to that task and the recipe stops there.
 - Once fields were filled, the next lone click may be the save, so the recipe stops there. If that
   click came after a single fill, the fill was a search waiting for its button: it is dropped too,
-  so the operator never lands on a half-done search it did not start (measured 13:55: it skipped
+  so the operator never lands on a half-done search it did not start (measured 13:48: it skipped
   reading the results and the verifier sent it back).
 - Only Tab and Shift+Tab are replayed among keys. Enter can submit a form.
 - In modifications, only the search by referent is filled: editing a field of an existing record
