@@ -8,5 +8,6 @@
   "claves_razon": [
     "Manizales"
   ],
-  "nota": "Manizales no está en la lista cerrada de ciudades: la tarea es imposible y no debe guardar nada."
+  "nota": "Manizales no está en la lista cerrada de ciudades: la tarea es imposible y no debe guardar nada.",
+  "categoria": "imposible"
 }

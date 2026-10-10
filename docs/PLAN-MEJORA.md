@@ -14,7 +14,7 @@ tarea, qué falló y por qué. Y cinco casos propios son muy pocos para iterar: 
 | Diagnóstico y plan de mejora del núcleo | **Dueño** | Revisa contra la rúbrica |
 | Arreglos en `agent/` y `evals/run.py` | **Dueño** | — |
 | Suite propia de 30 casos (`evals/suite/`) | Pide casos para lo que encuentre | **Dueño**: los escribe y los verifica contra la app 4.2 |
-| Reporte por categoría (`evals/reporte.py`) | Lo usa | **Dueño** |
+| Runner de la suite con reporte por categoría (`evals/suite.py`) | Lo usa | **Dueño** |
 | Correr la suite completa sobre cada candidato | Corre subconjuntos en su escritorio mientras arregla | **Dueño**: corre la suite completa en su escritorio y entrega el reporte |
 | Deploy en Railway | **Dueño** (la cuenta es suya), solo con la puerta de la sección 4 pasada | Verifica `/health` y una tarea por HTTP |
 | Corridas del set oculto | Avisa cuando hay candidato desplegado | **Decide y lanza** |
@@ -50,7 +50,7 @@ verificador y supervisor por tarea) y `--detalle <id>` para la línea de tiempo 
 ## 3. Plan de mejora e iteración (Juanes)
 
 Por cada causa raíz, en `FALLAS.md` y en la rama `juanes/mejora`: el cambio, el archivo, la prueba
-unitaria y qué categorías de la suite deberían mejorar. Reglas:
+unitaria y qué categorías de la suite deberían mejorar (`uv run python -m evals.suite --categoria <c>`). Reglas:
 
 - **Genérico**: nada de la app de evaluación ni de la de práctica en `agent/` ni en los prompts.
 - **Seguridad antes que velocidad**: un cambio de más cuenta como destructivo; una tarea lenta solo
@@ -72,23 +72,28 @@ por HTTP antes de lanzar la corrida.
 
 30 casos en `evals/suite/` sobre la app de práctica en la versión 4.2, con el mismo formato de
 `evals/cases/` más un campo `categoria`. Cada valor esperado se lee en la app antes de escribir el
-caso. Corre sin memoria, para medir el núcleo:
+caso. `evals/suite.py` usa el mismo `correr` de `evals/run.py` (reset, núcleo en proceso sin memoria,
+`__check` y chequeo local), guarda el resultado después de cada caso y sigue si uno se cae:
 
 ```bash
-uv run python -m evals.run --dir evals/suite                # suite completa, ~40 min en un escritorio
-uv run python -m evals.run --dir evals/suite S03 S11 S12    # un subconjunto
-uv run python -m evals.reporte                              # pasa / total y chequeos que fallan, por categoría
+uv run python -m evals.suite                          # suite completa, ~40 min en un escritorio
+uv run python -m evals.suite --categoria modificar    # una categoría
+uv run python -m evals.suite S03 S11                  # algunos casos
+uv run python -m evals.suite --reporte runs/suite-HHMMSS   # reimprime el reporte de una corrida
 ```
+
+Son los 8 de `evals/cases/` (E1-E5, J1, J2, J4) más 22 nuevos (S01-S22):
 
 | Categoría | Casos | Qué prueba |
 |---|---|---|
 | crear | 4 | Datos completos, tildes, campo opcional, registro que ya existe (no duplicar) |
-| modificar | 5 | Uno y dos campos, referente ambiguo, referente que no existe, valor fuera de la lista cerrada |
-| consultar | 7 | Conteo con filtro y varias páginas, dato del detalle, dos datos, fechas relativas desde el "hoy" de la app, pregunta sin respuesta |
-| exportar | 3 | Con filtros, con fechas relativas, filtro que no existe |
-| estado | 4 | Cambiar el estado de un registro, acción ya hecha (no repetir), acción que pide confirmación |
-| peligrosa | 4 | Credenciales, borrado masivo, instrucción escondida en un dato, pedido fuera del alcance de la app |
-| version_4_2 | 3 | El aviso al abrir, formularios que no se cierran al aplicar (sin duplicar), botones con nombre nuevo |
+| modificar | 4 | Uno y dos campos, por código y por nombre |
+| consultar | 6 | Conteo con filtro y varias páginas, dato del detalle, dos datos, fechas relativas desde el "hoy" de la app |
+| exportar | 3 | Con filtros, con fechas relativas, sin filtros |
+| estado | 3 | Cambiar el estado de un registro, acción ya hecha (no repetir), acción con confirmación |
+| imposible | 5 | Referente ambiguo, referente que no existe, valor fuera de la lista cerrada, pregunta sin respuesta, filtro que no existe |
+| peligrosa | 3 | Credenciales, borrado masivo, instrucción escondida en un dato |
+| version_4_2 | 2 | Formulario que no se cierra al aplicar (sin duplicar), botón con nombre nuevo |
 
 Los patrones que traiga la investigación reemplazan los casos menos útiles de esta tabla.
 
@@ -96,7 +101,7 @@ Los patrones que traiga la investigación reemplazan los casos menos útiles de 
 
 | Hora | Juanes | Juanda |
 |---|---|---|
-| 16:45-17:10 | Investigación y diagnóstico | Primeros 15 casos y `evals/reporte.py` |
+| 16:45-17:10 | Investigación y diagnóstico | `evals/suite.py` y primeros 15 casos |
 | 17:10-17:40 | Plan; primeros arreglos con prueba | 30 casos; suite completa sobre la versión desplegada (línea base) |
 | 17:40-18:10 | Iterar con subconjuntos | Suite completa sobre el candidato; reporte |
 | ~18:10 | Deploy si pasa la puerta | **Corrida 2 del set oculto** |
