@@ -18,16 +18,17 @@ from .tablas import Tabla
 from .traza import Traza
 
 MAX_PASOS = 40
+RESERVA_SEGUNDOS = 30  # margen para verificar y reportar antes del límite
 
-# Verbos de acción en el nombre de un control. Si el operador hace clic en algo que se llama así,
-# pasa por la compuerta aunque lo haya marcado como inofensivo: la etiqueta del modelo no basta.
+# Verbos de acción inequívocos en el nombre de un control. Si el operador hace clic en algo que se
+# llama así, pasa por la compuerta aunque lo haya marcado como inofensivo: la etiqueta del modelo no
+# basta. Solo palabras completas: "Datos generales" o "Envíos" no son acciones.
 _PARECE_CAMBIO = re.compile(
-    r"\b(guard|grab|crea|elimin|borr|quit|confirm|export|import|gener|envi|aprob|rechaz|anul|revert|"
-    r"acept|aplic|registrar|actualiz|pagar|cerrar caja|save|delet|remov|submit|creat|approv|reject|send|"
-    r"apply|updat|accept)|\b(sí|si|ok|yes)\b",
+    r"\b(guardar|grabar|crear|eliminar|borrar|confirmar|exportar|importar|generar|enviar|aprobar|rechazar|"
+    r"anular|revertir|aceptar|registrar|pagar|imprimir|save|delete|remove|submit|create|approve|reject|send|"
+    r"accept|export|import|print|sí|ok|yes)\b",
     re.IGNORECASE,
 )
-RESERVA_SEGUNDOS = 30  # margen para verificar y reportar antes del límite
 
 
 def _herramienta(nombre: str, descripcion: str, propiedades: dict, requeridas: list[str]) -> dict:
@@ -218,13 +219,15 @@ class Operador:
         # Si el supervisor no respondió JSON, su texto cuenta como objeción.
         return _json(contenido) or {"aprobar": False, "conforme": False, "motivo": contenido[:300], "problema": contenido[:300]}
 
-    async def _aprobar_guardado(self, descripcion: str) -> tuple[bool, str]:
+    async def _aprobar_guardado(self, descripcion: str) -> tuple[bool, str, bool]:
+        """Devuelve (aprobada, motivo, si el revisor la considera un cambio real)."""
         previas = "; ".join(self.cambios) or "ninguna"
         veredicto = await self._consultar_supervisor(
             prompts.REVISOR_GUARDADO,
             f"ACCIONES DE CAMBIO YA EJECUTADAS EN ESTA TAREA: {previas}.\nACCIÓN PROPUESTA: {descripcion}",
         )
-        return bool(veredicto.get("aprobar")), str(veredicto.get("motivo", "sin motivo"))
+        es_cambio = veredicto.get("es_cambio") is not False
+        return bool(veredicto.get("aprobar")), str(veredicto.get("motivo", "sin motivo")), es_cambio
 
     async def _verificar(self, cierre: Cierre) -> tuple[bool, str]:
         veredicto = await self._consultar_supervisor(
@@ -248,6 +251,9 @@ class Operador:
             )
         if nombre == "clic" and not a.get("cambia_datos") and _PARECE_CAMBIO.search(a.get("objetivo", "")):
             a["cambia_datos"] = True
+            marcada_por_nombre = True
+        else:
+            marcada_por_nombre = False
         revisada = False
         if nombre in ("clic", "tecla") and a.get("cambia_datos"):
             revisada = True
@@ -256,11 +262,17 @@ class Operador:
                 if nombre == "clic"
                 else f"tecla {a.get('combinacion')}"
             )
-            aprobado, motivo = await self._aprobar_guardado(descripcion)
+            aprobado, motivo, es_cambio = await self._aprobar_guardado(descripcion)
             if not aprobado:
                 return f"NO ejecutada. El revisor la rechazó: {motivo}"
-            self.confirmaciones += 1
-            self.cambios.append(f"turno {self.paso}: {descripcion}")
+            # Cuenta como cambio si el operador mismo la marcó, o si el revisor no la descartó. Solo
+            # se libra lo que entró por el nombre y el revisor vio que no deja ningún resultado.
+            cuenta = es_cambio or not marcada_por_nombre
+            if cuenta:
+                self.confirmaciones += 1
+                self.cambios.append(f"turno {self.paso}: {descripcion}")
+            else:
+                a["cambia_datos"] = False
         if revisada:
             # Toda acción que pasó por la compuerta deja su captura inmediata: los avisos de la
             # aplicación pueden durar un par de segundos y son la evidencia del verificador.
@@ -270,7 +282,8 @@ class Operador:
                 hubo = await self.esc.tecla(a["combinacion"])
             self.evidencia = await self.esc.captura()
             self.traza.captura(900 + self.confirmaciones, self.evidencia)
-            self.diario.cambio_confirmado(descripcion, a.get("x"), a.get("y"), self.evidencia, self.paso)
+            if a.get("cambia_datos"):
+                self.diario.cambio_confirmado(descripcion, a.get("x"), a.get("y"), self.evidencia, self.paso)
             return cambio(hubo)
         if nombre == "clic":
             return cambio(await self.esc.clic(a["x"], a["y"], veces=a.get("veces", 1)))

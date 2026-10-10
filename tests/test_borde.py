@@ -34,3 +34,12 @@ def test_text_strokes_and_text_caret_are_not_borders():
         dibujo.line((x, 35, x, 45), fill="black")
     dibujo.line((101, 32, 101, 48), fill="black")  # cursor de texto de 17 px
     assert not cerca_de_borde(imagen, 100, 40)
+
+
+def test_gate_pattern_matches_action_verbs_but_not_lookalikes():
+    from agent.operador import _PARECE_CAMBIO as patron
+
+    for nombre in ("Guardar", "botón Exportar (ver opciones)", "Eliminar registro", "Sí", "Generar reporte", "Save"):
+        assert patron.search(nombre), nombre
+    for nombre in ("Aplicar filtro", "Datos generales", "Actualizar lista", "Envíos", "Importe total", "Buscar", "Nuevo registro"):
+        assert not patron.search(nombre), nombre

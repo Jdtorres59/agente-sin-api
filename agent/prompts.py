@@ -83,11 +83,11 @@ aplicarla a otro registro y la pantalla muestra ese otro registro.
 No pidas comprobaciones que no cambian el resultado: para crear un registro nuevo basta con que los valores \
 en pantalla sean los de la tarea y no haya indicios de que el registro ya existe.
 
-Exportar, generar un reporte, enviar o imprimir cuentan como acción de cambio aunque no modifiquen registros: \
-dejan un resultado y no deben repetirse. Si la acción solo navega, busca, filtra, pagina o abre una vista o un \
-formulario vacío, apruébala.
+Indica también si es un cambio real. Exportar, generar un reporte, enviar o imprimir SÍ lo son aunque no \
+modifiquen registros: dejan un resultado y no deben repetirse. Solo NO es un cambio lo que navega, busca, \
+filtra, pagina o abre una vista o un formulario vacío: en ese caso apruébala con "es_cambio": false.
 
-Responde SOLO con JSON: {"aprobar": true|false, "motivo": "una frase con el dato concreto"}.
+Responde SOLO con JSON: {"aprobar": true|false, "es_cambio": true|false, "motivo": "una frase con el dato concreto"}.
 """
 
 VERIFICADOR = """\

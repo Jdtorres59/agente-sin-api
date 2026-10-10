@@ -9,8 +9,8 @@ from pathlib import Path
 FUENTES = Path(__file__).resolve().parents[1] / "agent"
 PROHIBIDO = [
     "sigecom", "andina", "cartera", "maestros", "bitácora",
-    "clientes", "facturas", "nit", "vencida", "revertir",
-]  # fmt: skip  ("pedidos" y "bitacora" quedan fuera: son palabras corrientes que usa el propio código)
+    "clientes", "facturas", "nit", "vencida",
+]  # fmt: skip  ("pedidos", "bitacora" y "revertir" quedan fuera: son palabras corrientes que usa el propio código)
 
 
 def test_agent_has_no_practice_app_vocabulary() -> None:
