@@ -30,8 +30,8 @@ _PARECE_CAMBIO = re.compile(
     r"\b(guardar|grabar|crear|eliminar|borrar|confirmar|exportar|importar|generar|enviar|aprobar|rechazar|"
     r"anular|revertir|aceptar|registrar|pagar|imprimir|facturar|emitir|agendar|programar|reprogramar|cancelar|"
     r"cobrar|abonar|asignar|autorizar|firmar|transferir|reembolsar|restablecer|regenerar|archivar|publicar|"
-    r"activar|desactivar|bloquear|finalizar|procesar|save|delete|remove|submit|create|approve|reject|send|"
-    r"accept|export|import|print|issue|schedule|cancel|pay|refund|assign|archive|sí|ok|yes)\b",
+    r"activar|desactivar|bloquear|finalizar|procesar|aplicar|save|delete|remove|submit|create|approve|reject|"
+    r"send|accept|export|import|print|issue|schedule|cancel|pay|refund|assign|archive|apply|sí|ok|yes)\b",
     re.IGNORECASE,
 )
 

@@ -178,3 +178,10 @@ def test_more_action_verbs_are_gated_by_name():
     guion = [[_llamada("clic", x=400, y=300, objetivo="Emitir recibo", cambia_datos=False)], FIN]
     esc, modelos = _correr(guion, bajo_el_punto="Emitir recibo")
     assert esc.clics == [(400, 300)] and modelos.revisiones == 1
+
+
+def test_apply_is_a_save_button_too():
+    """Tras el cambio de tema el botón de guardar se llama «Aplicar»: también pasa por la compuerta."""
+    guion = [[_llamada("clic", x=400, y=300, objetivo="botón Aplicar", cambia_datos=False)], FIN]
+    esc, modelos = _correr(guion, bajo_el_punto="Aplicar")
+    assert esc.clics == [(400, 300)] and modelos.revisiones == 1
