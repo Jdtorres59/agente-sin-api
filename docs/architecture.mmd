@@ -1,0 +1,38 @@
+flowchart LR
+  G([Grader]) -->|"POST /tasks<br/>task + desktop"| API
+  API -->|"GET /tasks/{id}<br/>estado + resumen"| G
+
+  subgraph SVC["Agent service · FastAPI on Railway, always on"]
+    API["Entrypoint<br/>Bearer token<br/>task_id in under 2 s"]
+    STORE[("Task store")]
+    API <--> STORE
+
+    subgraph RUN["Task runner · one asyncio task per request"]
+      PLAN["Planner · Sonnet 5.5<br/>goal, entities, risks:<br/>ambiguous, impossible,<br/>dangerous?"]
+      EXEC["Executor · Haiku 5.5<br/>reads the screen,<br/>proposes ONE action"]
+      VER["Verifier · code<br/>did the screen change?<br/>4:30 limit, steps, cost cap,<br/>stuck detector"]
+      ESC["Escalation · Sonnet 5.5<br/>after 2 no-effect actions"]
+      JUDGE["Judge · Sonnet 5.5<br/>final screen + action log:<br/>terminada or fallida"]
+      FMT["Formatter · code<br/>respuesta line,<br/>secret scrub"]
+      PLAN --> EXEC
+      EXEC -->|action| VER
+      VER -->|next step| EXEC
+      VER -->|no effect x2| ESC
+      ESC --> VER
+      VER -->|done or limit| JUDGE
+      JUDGE --> FMT
+    end
+    API -->|spawn| PLAN
+    FMT --> STORE
+  end
+
+  VER <-->|"actions out (click held 150 ms,<br/>select-all before typing)<br/>stable screenshots in"| VNC["VNC client · code<br/>RFB over websocket"]
+  VNC <==> DESK[("Remote desktop<br/>kiosk browser +<br/>legacy app, 1280x800")]
+  RUN -.-> LOG[("Timestamped log<br/>screenshot per step,<br/>cost per call")]
+
+  classDef model fill:#fde8d0,stroke:#d9822b,color:#222;
+  classDef code fill:#dcebfa,stroke:#3b7dd8,color:#222;
+  classDef ext fill:#eeeeee,stroke:#888,color:#222;
+  class PLAN,EXEC,ESC,JUDGE model;
+  class API,VER,FMT,VNC,STORE,LOG code;
+  class G,DESK ext;
