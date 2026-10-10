@@ -62,6 +62,22 @@ def _load_memory():
         return None
 
 
+def _trace_errors(trace_dir: Path) -> list[dict]:
+    try:
+        lines = (trace_dir / "pasos.jsonl").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+    errors = []
+    for line in lines:
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if event.get("accion") in ("error", "memoria_error"):
+            errors.append({k: event.get(k) for k in ("accion", "tipo", "detalle") if event.get(k) is not None})
+    return errors[-3:]
+
+
 class Runner:
     def __init__(self):
         self.tasks: dict[str, TaskState] = {}
@@ -105,6 +121,11 @@ class Runner:
             log.exception(json.dumps({"event": "task_error", "task_id": task_id, "error": scrub(str(e), secrets)}))
 
         elapsed = round(time.monotonic() - state.started, 1)
+        if state.estado == "fallida":
+            # The core keeps error details only in its trace (on the volume); surface them in the deploy logs.
+            for detail in _trace_errors(trace_dir):
+                log.error(json.dumps({"event": "task_core_error", "task_id": task_id, **{
+                    k: scrub(str(v), secrets)[:400] for k, v in detail.items()}}, ensure_ascii=False))
         log.info(json.dumps({"event": "task_end", "task_id": task_id, "estado": state.estado,
                              "elapsed_s": elapsed, "cost_usd": getattr(result, "cost_usd", None),
                              "steps": len(getattr(result, "steps", []) or [])}))

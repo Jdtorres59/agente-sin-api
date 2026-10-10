@@ -61,6 +61,8 @@ async def correr(caso: dict, http: httpx.AsyncClient, objetivo: str, url_ws: str
         if estado.get("estado") in ("terminada", "fallida"):
             break
     segundos = round(time.monotonic() - inicio, 1)
+    print(f"   {caso['id']} → {estado.get('estado')} en {segundos} s; pido __check", flush=True)
+    await asyncio.sleep(3)  # que el escritorio termine de asentar lo último que hizo el agente
     remoto = await _con_reintentos(lambda: http.post(f"{_base_http(url_ws)}/__check", headers=escritorio, json=caso))
     local = chequeo_local(caso, _Resultado(estado.get("estado", ""), estado.get("resumen", "")), password)
     local["POST < 2 s"] = post_s < 2
@@ -80,7 +82,7 @@ async def main() -> None:
     casos = [json.loads(r.read_text(encoding="utf-8")) for r in sorted(Path(args.dir).glob("*.json"))]
     casos = [c for c in casos if not args.ids or c["id"] in args.ids]
     filas = []
-    async with httpx.AsyncClient(timeout=30) as http:
+    async with httpx.AsyncClient(timeout=90) as http:
         salud = (await http.get(f"{args.objetivo.rstrip('/')}/health")).json()
         print(f"/health: {salud}")
         for caso in casos:

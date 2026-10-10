@@ -74,3 +74,12 @@ def test_missing_core_reports_fallida(monkeypatch):
         await asyncio.sleep(0.3)
         assert (await c.get(f"/tasks/{tid}", headers=AUTH)).json()["estado"] == "fallida"
     asyncio.run(_serve_and(check, monkeypatch, None))
+
+
+def test_trace_errors_are_read_for_the_deploy_logs(tmp_path):
+    from service.runner import _trace_errors
+    (tmp_path / "pasos.jsonl").write_text(
+        '{"accion": "inicio"}\n{"accion": "error", "tipo": "ErrorModelo", "detalle": "OpenRouter respondió 400"}\n',
+        encoding="utf-8")
+    assert _trace_errors(tmp_path) == [{"accion": "error", "tipo": "ErrorModelo", "detalle": "OpenRouter respondió 400"}]
+    assert _trace_errors(tmp_path / "missing") == []

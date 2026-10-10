@@ -121,7 +121,19 @@ verificación), que la memoria no salta a propósito. Ver [FALLAS.md](FALLAS.md)
 
 ## Incidente
 
-_Se llena cuando ocurra: hora de detección, síntoma, causa, arreglo y evals antes y después._
+Protocolo preparado antes de las 15:30:
+
+1. **Detectar sin modelo.** `evals/canary.py` resetea el escritorio de práctica cada 5 minutos, llega
+   con clics fijos a seis pantallas (inicio, menú, lista y formulario de clientes, facturas, pedidos)
+   y compara cada una con su base al píxel. Tras un reset, la misma pantalla da 0 píxeles de
+   diferencia y un menú renombrado mueve ~230, así que cualquier cambio dispara la alerta (campana,
+   notificación, imágenes con las regiones marcadas y línea con hora en `runs/canary/log.jsonl`).
+2. **Medir el impacto.** Correr `evals.run` completo y comparar con la línea base de las 15:00.
+3. **Adaptarse.** El agente no depende de coordenadas: percibe cada pantalla. La memoria, si estuviera
+   encendida, deja de repetir una receta en cuanto un ancla no coincide.
+4. **Explicar.** Esta sección: hora de detección, síntoma, causa, arreglo y evals antes y después.
+
+_Resultado: se llena cuando ocurra._
 
 ## Límites conocidos
 
