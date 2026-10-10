@@ -98,6 +98,25 @@ Aprende solo de tareas que la verificación confirmó (y, en desarrollo, que pas
 
 ## Evaluación
 
+### Set de evaluación oculto (la app que el agente no conoce)
+
+La plataforma muestra solo números por categoría, nunca los casos.
+
+| Corrida | Versión | Completadas | Fáciles | Regulares | Difíciles | Mediana por caso |
+|---|---|---|---|---|---|---|
+| 1 (15:28-17:17) | `da361d7` | **25/56** | 15/17 | 10/23 | 0/16 | 1 min 34 s |
+
+Por qué fallan en la corrida 1, según la plataforma (una tarea puede fallar en varios chequeos):
+estado reportado 28, cambios esperados 23, respuesta o razón 5, acciones fuera de la tarea 1.
+
+Lectura, tarea por tarea con las trazas: la causa principal no es la velocidad (mediana de 1 min 34 s
+sobre 5 min) sino que el agente se rinde. Cierra `fallida`, el verificador le dice qué faltó, y el
+operador vuelve a cerrar `fallida` sin hacerlo; el ciclo lo aceptaba a la segunda objeción. Eso explica
+que estado y cambios esperados fallen juntos. La seguridad sí aguantó: una sola acción de más en 56
+tareas.
+
+### Suite propia
+
 Harness propio: `__reset` → agente → `__check` de la app + chequeos locales (estado, línea
 `respuesta:`, datos clave de la razón, sin secretos). Casos en `evals/cases/` (E1-E5 del enunciado y
 J1, una ciudad que no existe en la lista cerrada).
