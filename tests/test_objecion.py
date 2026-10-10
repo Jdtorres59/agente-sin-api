@@ -69,6 +69,7 @@ ABRIR = [_llamada("clic", x=400, y=300, objetivo="fila del registro", cambia_dat
 HECHO = [_llamada("terminar", estado="terminada", hechos="Leí el dato en el detalle.", respuesta="42")]
 
 
+
 def _correr(guion, acepta_tras_clic=True):
     esc = FakeEsc()
     modelos = FakeModelos(guion, esc, acepta_tras_clic)
@@ -103,3 +104,17 @@ def test_objections_are_bounded():
     cierre, modelos = _correr([RENDIRSE] * 8, acepta_tras_clic=False)
     assert cierre.estado == "fallida" and not cierre.verificado
     assert modelos.verificaciones == MAX_OBJECIONES
+
+
+def test_an_answer_held_after_working_on_the_objection_is_accepted_the_second_time():
+    cierre, modelos = _correr([HECHO, ABRIR, HECHO], acepta_tras_clic=False)
+    assert cierre.estado == "terminada" and cierre.respuesta == "42" and not cierre.verificado
+    assert modelos.verificaciones == 2
+
+
+def test_a_changed_answer_is_not_a_held_answer():
+    otra = [_llamada("terminar", estado="terminada", hechos="Leí otra vez.", respuesta="43")]
+    cierre, modelos = _correr([HECHO, ABRIR, otra[0:1], ABRIR, otra[0:1]] + [RENDIRSE] * 6,
+                              acepta_tras_clic=False)
+    assert modelos.verificaciones >= 3  # 42 y luego 43: la segunda no es la misma respuesta
+    assert cierre.respuesta == "43"

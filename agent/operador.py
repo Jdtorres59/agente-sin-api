@@ -704,6 +704,7 @@ class Operador:
         rechazos = errores_modelo = devueltos = 0
         desde_objecion = 0  # acciones ejecutadas desde la última objeción del verificador
         ultima_objecion = ""
+        terminada_objetada = None  # (respuesta, cambios) del último «terminada» que objetó el verificador
 
         for paso in range(1, MAX_PASOS + 1):
             self.paso = paso
@@ -816,6 +817,16 @@ class Operador:
             rechazos += 1
             if problema:
                 self.objeciones.append(problema)
+            if cierre.estado == "terminada":
+                # Un «terminada» que el operador sostiene con la misma respuesta y los mismos cambios después
+                # de trabajar sobre la objeción se acepta a la segunda: una respuesta equivocada y una
+                # «fallida» valen lo mismo, y el verificador a veces pide pruebas que la app no da (suite
+                # 17:30: respuesta correcta objetada 4 veces hasta agotar el tiempo). Rendirse sigue estricto.
+                firma = (cierre.respuesta.strip().lower(), self.confirmaciones)
+                if firma == terminada_objetada and desde_objecion:
+                    self.traza.evento(paso=paso, accion="cierre_sostenido", respuesta=cierre.respuesta)
+                    return cierre
+                terminada_objetada = firma
             if rechazos >= MAX_OBJECIONES or self._quedan() < RESERVA_SEGUNDOS + 20:
                 if cierre.estado == "terminada":
                     cierre.estado = "fallida"
