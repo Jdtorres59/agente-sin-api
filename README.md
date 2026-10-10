@@ -133,17 +133,72 @@ un solo tipo de tarea; la varianza entre corridas es alta (11 a 22 llamadas para
 
 Protocolo preparado antes de las 15:30:
 
-1. **Detectar sin modelo.** `evals/canary.py` resetea el escritorio de práctica cada 5 minutos, llega
+1. **Detectar sin modelo.** `evals/canary.py` resetea el escritorio de práctica cada 5 minutos (cada 10 desde las 16:13), llega
    con clics fijos a seis pantallas (inicio, menú, lista y formulario de clientes, facturas, pedidos)
    y compara cada una con su base al píxel. Tras un reset, la misma pantalla da 0 píxeles de
    diferencia y un menú renombrado mueve ~230, así que cualquier cambio dispara la alerta (campana,
    notificación, imágenes con las regiones marcadas y línea con hora en `runs/canary/log.jsonl`).
 2. **Medir el impacto.** Correr `evals.run` completo y comparar con la línea base de las 15:00.
-3. **Adaptarse.** El agente no depende de coordenadas: percibe cada pantalla. La memoria, si estuviera
-   encendida, deja de repetir una receta en cuanto un ancla no coincide.
+3. **Adaptarse.** El agente no depende de coordenadas: percibe cada pantalla. La memoria deja de repetir
+   una receta en cuanto un ancla no coincide.
 4. **Explicar.** Esta sección: hora de detección, síntoma, causa, arreglo y evals antes y después.
 
-_Resultado: se llena cuando ocurra._
+### Qué pasó (escritorio de práctica, horas de Bogotá)
+
+| Hora | Señal | Fuente |
+|---|---|---|
+| 15:48:45 | Última ronda en la versión 3.9: 0 píxeles de diferencia en las seis pantallas | `runs/canary/log.jsonl` |
+| 15:52:22 | Alerta del canario: no pudo leer el escritorio (`ConnectionClosedError`). El escritorio se estaba reiniciando con la versión nueva | `runs/canary/salida.log` |
+| 15:55:30 | El escritorio de Juanes ya muestra la versión 4.2 | observación directa |
+| 15:57:23 | Primeras capturas con cambios (inicio, menú y clientes); la ronda se cayó a las 15:59 antes de terminar | `runs/canary/155723-*` |
+| **16:03:14** | **Alerta de cambio: las seis pantallas cambian entre 92% y 99,7% de sus píxeles** | `runs/canary/160314-*-cambios.png` |
+| 16:07:17 | Con las sondas cerrando el aviso: cambian las barras de arriba en todas, y la sonda «nuevo cliente» llega a otra pantalla | `runs/canary/160717-*` |
+| 16:13 | Bases nuevas de la 4.2 (las de la 3.9 quedan en `runs/canary/v3.9/`); ronda de control a las 16:15 con 0 px | `runs/canary/log.jsonl` |
+
+**Qué cambió en la app (versión 3.9 → 4.2).** Lo dice el propio aviso que la app abre al iniciar y
+lo confirman las capturas:
+
+- Un aviso modal «Novedades de la versión 4.2» tapa la pantalla hasta pulsar «Entendido».
+- **Los formularios se aplican sin cerrarse.** Es el cambio peligroso: si el agente espera que el
+  formulario desaparezca para creer que guardó, puede aplicar dos veces y crear un duplicado.
+- La barra de acciones pasó a la derecha, y los botones tienen nombres nuevos: Guardar → Aplicar,
+  Volver → Cerrar, Buscar → Filtrar, Nuevo cliente → Crear cliente.
+- Otro color en las barras de título y menú.
+
+![Inicio antes y después](docs/incidente/inicio-3.9-vs-4.2.png)
+
+La sonda del canario que va a «nuevo cliente» hace clic donde estaba el botón en la 3.9. En la 4.2
+ese botón está a la derecha, así que la sonda se queda en la lista de clientes (abajo). Una receta
+que repitiera coordenadas fijas fallaría igual.
+
+![Sonda de nuevo cliente antes y después](docs/incidente/sonda-nuevo-cliente-3.9-vs-4.2.png)
+
+### Qué aguantó sin cambios
+
+- **El operador no depende de coordenadas ni de nombres fijos de pantalla**: mira cada captura. En
+  producción, el agente cerró el aviso y navegó la versión nueva sin errores del núcleo.
+- **La memoria no repitió nada viejo.** La huella de la app cambia por completo con el color de las
+  barras (distancia 1,0 en la banda de arriba, cuando el umbral para ser la misma app es 0,05), así
+  que la 4.2 cuenta como una app nueva y ninguna receta de la 3.9 se repite sobre ella. Comprobado
+  con las capturas de las dos versiones.
+
+### Qué se arregló
+
+| Problema | Riesgo | Arreglo | Estado |
+|---|---|---|---|
+| «Aplicar» no estaba entre los nombres de acción de la compuerta | Un guardado sin revisión previa, que puede contar como acción destructiva | «Aplicar» en la compuerta, más una regla para el aviso emergente | Rama `juanes/incidente`, se despliega al terminar la corrida 1 del set oculto |
+| La compuerta reconoce acciones por una lista de verbos | El mismo problema con cualquier nombre nuevo | La comprobación del punto dice si el control ejecuta una acción, sin lista cerrada | En curso (`docs/PLAN-CORRIDA2.md`, J-1) |
+| Formularios que no se cierran al aplicar | Aplicar dos veces y duplicar | Tras aplicar se confirma releyendo, nunca aplicando otra vez; el revisor rechaza un segundo aplicar sobre el mismo registro | En curso (J-1) |
+| Canario con umbral de color 40 | En la pantalla del menú, ya sin el aviso, solo marcaba 85 px (la etiqueta «v4.2»), muy cerca del ruido de 50 px: el cambio de color de las barras queda bajo 40 por canal | Umbral 12: la misma comparación marca 42.276 px en las barras | Hecho (`04f5c19`) |
+| Las sondas del canario no pasaban el aviso | Cada sonda capturaba el aviso y no su pantalla | Las sondas pulsan «Entendido» antes de navegar | Hecho (`04f5c19`) |
+
+### Evals antes y después
+
+| Hora | App | Código | Resultado (E1-E5 + J1) |
+|---|---|---|---|
+| 14:33-14:42 | 3.9 | `6b01bcd` (línea base) | 6/6, 83 s de media, US$0,207 en total |
+| 15:55-16:04 | 4.2 | `da361d7` (en producción) | 5/6 |
+| Tras el despliegue | 4.2 | `juanes/incidente` | Se mide al desplegar |
 
 ## Límites conocidos
 
