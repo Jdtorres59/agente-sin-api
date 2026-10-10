@@ -13,10 +13,10 @@ PAGINAS = 4
 class FakeVnc:
     """Una lista de cuatro páginas. Tras cada clic, la primera captura sale con un resaltado sin borrar."""
 
-    def __init__(self, sucias: int):
+    def __init__(self, sucias: int, al_inicio: int = 0):
         self.pagina = 1
         self.sucias = sucias  # capturas a medio dibujar después de cada cambio de página
-        self.pendientes = 0
+        self.pendientes = al_inicio  # capturas a medio dibujar antes del primer clic
 
     def captura(self) -> Image.Image:
         imagen = Image.new("RGB", (640, 720), "white")
@@ -44,8 +44,8 @@ class EscritorioDePrueba(Escritorio):
         return "Código\tEstado\n" + "\n".join(f"F-{pagina}{n}\tAbierta" for n in range(3))
 
 
-def _leer(sucias: int):
-    esc = EscritorioDePrueba(FakeVnc(sucias))
+def _leer(sucias: int, al_inicio: int = 0):
+    esc = EscritorioDePrueba(FakeVnc(sucias, al_inicio))
     return asyncio.run(esc.leer_lista(SIGUIENTE))
 
 
@@ -56,4 +56,10 @@ def test_reads_every_page():
 
 def test_a_half_drawn_capture_does_not_cut_the_list_short():
     tabla, _ = _leer(sucias=2)
+    assert tabla.paginas == PAGINAS and len(tabla.filas) == 12
+
+
+def test_a_half_drawn_template_does_not_cut_the_list_short():
+    """Si el control se captura a medio dibujar al empezar, la plantilla no coincide nunca más."""
+    tabla, _ = _leer(sucias=0, al_inicio=1)
     assert tabla.paginas == PAGINAS and len(tabla.filas) == 12

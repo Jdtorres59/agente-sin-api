@@ -244,6 +244,21 @@ class Escritorio:
                 return arriba + medio_alto
         return None
 
+    async def _recorte_estable(self, caja: tuple[int, int, int, int], intentos: int = 4) -> Image.Image:
+        """Recorte de la pantalla tomado dos veces seguidas con el mismo resultado.
+
+        Si la plantilla se captura a medio dibujar (un resaltado que aún no se borra), no vuelve a
+        coincidir con nada y la lectura se corta en la segunda página sin que nadie lo note.
+        """
+        recorte = self.vnc.captura().crop(caja)
+        for _ in range(intentos):
+            await self.vnc.asentar(quieto=0.35, esperar_cambio=0.6, maximo=2.0)
+            otro = self.vnc.captura().crop(caja)
+            if ImageChops.difference(recorte, otro).getbbox() is None:
+                break
+            recorte = otro
+        return recorte
+
     async def _ubicar_sin_prisa(self, plantilla: Image.Image, x: int, medio_alto: int, intentos: int = 4) -> int | None:
         """Como `_ubicar`, pero no da el control por perdido con una sola captura.
 
@@ -273,7 +288,7 @@ class Escritorio:
         x, y = siguiente
         medio_ancho, medio_alto = 22, 8
         # leer_pantalla deja el ratón en una zona vacía: el control se captura sin resaltado.
-        plantilla = self.vnc.captura().crop((x - medio_ancho, y - medio_alto, x + medio_ancho, y + medio_alto))
+        plantilla = await self._recorte_estable((x - medio_ancho, y - medio_alto, x + medio_ancho, y + medio_alto))
         motivo = f"se alcanzó el máximo de {max_paginas} páginas"
         for _ in range(max_paginas - 1):
             donde = await self._ubicar_sin_prisa(plantilla, x, medio_alto)

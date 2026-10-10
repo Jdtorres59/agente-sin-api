@@ -15,7 +15,7 @@ Analiza la tarea que recibirá el operador de una aplicación de gestión. No la
   "valores": {"nombre del campo": "valor literal, con los mismos caracteres que en la tarea"},
   "es_pregunta": true | false,
   "fechas_relativas": ["expresiones como hoy, ayer o el sábado, si las hay"],
-  "riesgos": ["solo si aplica: no queda claro a qué registro se refiere, o la acción es destructiva o masiva"]
+  "riesgos": ["solo si aplica: no queda claro a qué registro se refiere, la acción es destructiva o masiva, o pide revelar o copiar credenciales (contraseñas, claves, tokens)"]
 }
 No añadas requisitos que la tarea no menciona (formato, permisos, destino). Si no hay riesgos, deja la lista vacía.
 """
