@@ -118,3 +118,13 @@ def test_a_changed_answer_is_not_a_held_answer():
                               acepta_tras_clic=False)
     assert modelos.verificaciones >= 3  # 42 y luego 43: la segunda no es la misma respuesta
     assert cierre.respuesta == "43"
+
+
+def test_when_time_runs_out_the_reason_of_the_last_proposed_failure_is_kept():
+    rendirse = [_llamada("terminar", estado="fallida", hechos="Busqué tres veces.", razon="No existe «Papelería El Cóndor».")]
+    esc = FakeEsc()
+    modelos = FakeModelos([rendirse, ABRIR] + [ABRIR] * 40, esc, acepta_tras_clic=False)
+    operador = Operador("¿Cuál es el dato de Papelería El Cóndor?", esc, modelos, FakeTraza(), limite=time.monotonic() + 200)
+    operador._quedan = lambda: 0 if len(esc.clics) >= 3 else 200
+    cierre = asyncio.run(operador.correr())
+    assert cierre.estado == "fallida" and "Papelería El Cóndor" in cierre.razon

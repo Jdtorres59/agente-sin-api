@@ -248,6 +248,7 @@ class Operador:
         self.lista_abierta: str | None = None  # captura de la última lista desplegable leída, ya codificada
         self.caidas_vistas = 0  # reconexiones al escritorio de las que el operador ya fue avisado
         self.diario = Diario()  # valor anterior exacto de cada campo editado, para poder restaurarlo
+        self.ultima_fallida: Cierre | None = None  # último «fallida» que el verificador devolvió, con su razón
         self.recuperable = recuperable  # el sub-operador de una reversión no vuelve a recuperar
 
     def _quedan(self) -> float:
@@ -817,6 +818,8 @@ class Operador:
             rechazos += 1
             if problema:
                 self.objeciones.append(problema)
+            if cierre.estado == "fallida" and cierre.razon:
+                self.ultima_fallida = cierre
             if cierre.estado == "terminada":
                 # Un «terminada» que el operador sostiene con la misma respuesta y los mismos cambios después
                 # de trabajar sobre la objeción se acepta a la segunda: una respuesta equivocada y una
@@ -851,6 +854,13 @@ class Operador:
         return self._cierre_forzado("se agotaron los turnos", MAX_PASOS)
 
     def _cierre_forzado(self, motivo: str, paso: int) -> Cierre:
+        previa = self.ultima_fallida
+        if previa is not None and not self.confirmaciones:
+            # Ya había propuesto «fallida» con los datos que lo explican y el verificador lo mandó a buscar
+            # más: si el tiempo se acaba, esa razón vale más que «se agotó el tiempo» (suite 18:10, S21: un
+            # registro que no existe, la razón correcta a los 204 s y el cierre forzado la perdía).
+            return Cierre("fallida", previa.hechos, razon=f"{previa.razon} ({motivo} antes de confirmarlo)",
+                          pasos=paso, confirmaciones=0, bitacora=self.bitacora)
         hechos = "No se alcanzó a completar ni a verificar la tarea."
         if self.confirmaciones:
             hechos += f" Se aplicaron {self.confirmaciones} cambio(s) antes de detenerse."
