@@ -1,0 +1,10 @@
+{
+  "id": "J2",
+  "nivel": "regular",
+  "instruccion": "¿Qué pedido originó la factura FV-10004 y cuál es su valor?",
+  "estado_esperado": "terminada",
+  "diff_esperado": [],
+  "lista_blanca": [],
+  "respuesta_esperada": "PD-0207",
+  "nota": "Dos datos en la misma línea (pedido; valor) a partir del detalle de la factura: PD-0207; 450.000. Verificado en la versión 4.2 a las 16:17."
+}
