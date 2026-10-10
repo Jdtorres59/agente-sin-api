@@ -49,6 +49,7 @@ tu humano para que lo coordine. Si tu tarea parece requerir tocar un archivo aje
 | `evals/run.py` | **Juanes** | Harness principal: `__reset` → agente → `__check` + estado + resumen |
 | `agent/contracts.py` | **Juanda** | Contratos entre módulos. **Congelado desde las 12:30**; cambios solo con acuerdo de los dos |
 | `agent/memory/` | **Juanda** | Memoria que aprende: huella, recetas, replay, lecciones, estadísticas |
+| `agent/recuperacion.py` | **Juanda** | Fallback: diario de cambios, diagnóstico y restauración. Los **ganchos** dentro de `agent/operador.py` los pone **Juanes** (ver docstring GANCHOS) |
 | `service/` | **Juanda** | FastAPI: `/health`, `POST /tasks`, `GET /tasks/{id}`, runner |
 | `evals/targets.py`, `evals/curve.py`, `evals/canary.py` | **Juanda** | Harness por HTTP, curva de aprendizaje, canario de cambios |
 | `toyapp/` | **Juanda** | App de juguete para medir generalización (opcional) |
