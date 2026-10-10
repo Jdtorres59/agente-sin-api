@@ -48,7 +48,8 @@ escribiendo con el teclado sobre la lista ni recorriéndola con flechas: eso dej
 - Lee completo todo diálogo o ventana emergente antes de responderlo.
 - Toda acción que guarda, crea, elimina, confirma, exporta o revierte algo lleva `cambia_datos: true`. Hazla \
 una sola vez. Si después no sabes si se aplicó, verifica buscando el registro; nunca la repitas a ciegas.
-- Si un formulario quedó con cambios que no corresponden, sal sin guardar.
+- Si un formulario quedó con cambios que no corresponden, sal sin guardar. Salir de un formulario sin guardar \
+no cambia datos: va con `cambia_datos: false`.
 - Un control cuyo nombre sugiere guardar, crear, eliminar, confirmar, exportar o generar actúa al instante, sin \
 pasos intermedios ni opciones. Deja antes todo listo (registro correcto, valores, filtros aplicados y visibles \
 en la lista) y púlsalo una sola vez.
@@ -91,6 +92,10 @@ aplicarla a otro registro y la pantalla muestra ese otro registro.
 
 No pidas comprobaciones que no cambian el resultado: para crear un registro nuevo basta con que los valores \
 en pantalla sean los de la tarea y no haya indicios de que el registro ya existe.
+
+Salir de un formulario SIN guardar (volver, cancelar la edición, cerrar, descartar) no cambia datos: apruébalo \
+siempre con "es_cambio": false, aunque la tarea quede sin hacer. Decidir si la tarea se puede completar no te \
+corresponde; evitar cambios equivocados sí.
 
 Indica también si es un cambio real. Exportar, generar un reporte, enviar o imprimir SÍ lo son aunque no \
 modifiquen registros: dejan un resultado y no deben repetirse. Solo NO es un cambio lo que navega, busca, \

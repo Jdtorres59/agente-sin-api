@@ -36,6 +36,13 @@ _PARECE_CAMBIO = re.compile(
 # Controles que solo navegan. Si el operador los marca como cambio de datos, no hace falta revisarlos.
 _SOLO_NAVEGA = re.compile(r"\b(buscar|filtrar|siguiente|anterior|volver|search|filter|next|previous|back)\b", re.IGNORECASE)
 MAX_CONSEJOS = 3  # consultas al supervisor por atasco, por tarea
+MAX_RECHAZOS_IGUALES = 3  # veces que el revisor rechaza la misma acción antes de dejar de consultarlo
+_NEGADO = re.compile(r"\b(sin|no|without|not)\s+\w+", re.IGNORECASE)
+
+
+def _nombra_cambio(texto: str) -> bool:
+    """El nombre del control sugiere una acción de cambio. «Volver sin guardar» no: el verbo va negado."""
+    return bool(_PARECE_CAMBIO.search(_NEGADO.sub(" ", texto)))
 
 
 def _palabras(texto: str) -> set[str]:
@@ -211,6 +218,7 @@ class Operador:
         self.tabla: Tabla | None = None
         self.evidencia = None  # captura tomada justo después del último cambio de datos
         self.capturas: dict[int, str] = {}  # la captura que el operador vio en cada turno, ya codificada
+        self.rechazadas: dict[str, tuple[int, str]] = {}  # acción rechazada → (veces, último motivo)
         self.diario = Diario()  # valor anterior exacto de cada campo editado, para poder restaurarlo
         self.recuperable = recuperable  # el sub-operador de una reversión no vuelve a recuperar
 
@@ -323,7 +331,7 @@ class Operador:
             equivocado = not (_palabras(leido) & _palabras(objetivo))
         else:
             # Un clic inofensivo solo se frena si en realidad cae sobre un control de acción.
-            equivocado = bool(_PARECE_CAMBIO.search(leido)) and not _PARECE_CAMBIO.search(objetivo)
+            equivocado = _nombra_cambio(leido) and not _nombra_cambio(objetivo)
         if not equivocado:
             return None
         return (
@@ -343,9 +351,9 @@ class Operador:
                 "Apunta al centro del control que quieres."
             )
         objetivo = a.get("objetivo", "")
-        if nombre == "clic" and a.get("cambia_datos") and _SOLO_NAVEGA.search(objetivo) and not _PARECE_CAMBIO.search(objetivo):
+        if nombre == "clic" and a.get("cambia_datos") and _SOLO_NAVEGA.search(objetivo) and not _nombra_cambio(objetivo):
             a["cambia_datos"] = False  # buscar o paginar no cambia datos: no gasta una revisión
-        if nombre == "clic" and not a.get("cambia_datos") and _PARECE_CAMBIO.search(objetivo):
+        if nombre == "clic" and not a.get("cambia_datos") and _nombra_cambio(objetivo):
             a["cambia_datos"] = True
             marcada_por_nombre = True
         else:
@@ -364,8 +372,16 @@ class Operador:
                 if nombre == "clic"
                 else f"tecla {a.get('combinacion')}"
             )
+            veces, ultimo = self.rechazadas.get(descripcion, (0, ""))
+            if veces >= MAX_RECHAZOS_IGUALES:
+                self.traza.evento(paso=self.paso, accion="rechazo_repetido", descripcion=descripcion, veces=veces)
+                return (
+                    f"NO ejecutada. El revisor ya rechazó {veces} veces esta misma acción ({ultimo}). No la "
+                    "propongas más: cambia de plan o, si la tarea no se puede completar, termina con «fallida»."
+                )
             aprobado, motivo, es_cambio = await self._aprobar_guardado(descripcion)
             if not aprobado:
+                self.rechazadas[descripcion] = (veces + 1, motivo)
                 return f"NO ejecutada. El revisor la rechazó: {motivo}"
             # Cuenta como cambio si el operador mismo la marcó, o si el revisor no la descartó. Solo
             # se libra lo que entró por el nombre y el revisor vio que no deja ningún resultado.
@@ -393,6 +409,7 @@ class Operador:
             anterior, quedo, en_campo = await self.esc.rellenar_con_anterior(a["x"], a["y"], a["texto"])
             if not en_campo:
                 return "NO ejecutada: el punto no está dentro de un campo de texto. Apunta al centro del campo."
+            self.rechazadas.clear()  # el formulario cambió: una acción rechazada merece otra revisión
             self.diario.antes_de_rellenar(a["x"], a["y"], a.get("campo", ""), anterior, a["texto"])
             self.diario.despues_de_rellenar(quedo)
             aviso = "" if a["texto"] in self.tarea else " Aviso: ese texto no aparece literal en la tarea."
@@ -616,7 +633,11 @@ class Operador:
                 self.firmas.append(json.dumps([(c["function"]["name"], c["function"].get("arguments")) for c in llamadas]))
                 aviso = "Resultados arriba."
                 f = self.firmas
-                repetido = (len(f) >= 3 and len(set(f[-3:])) == 1) or (len(f) >= 4 and f[-1] == f[-3] and f[-2] == f[-4])
+                repetido = (
+                    (len(f) >= 3 and len(set(f[-3:])) == 1)
+                    or (len(f) >= 4 and f[-1] == f[-3] and f[-2] == f[-4])
+                    or f[-9:].count(f[-1]) >= 3  # el mismo turno tres veces en poco tiempo: bucle más largo
+                )
                 if repetido or self.sin_efecto >= 2:
                     # Escalamiento: el supervisor mira la pantalla y aconseja; el operador sigue con ese consejo.
                     self.sin_efecto = 0

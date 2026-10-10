@@ -118,3 +118,32 @@ def test_a_reply_without_tool_calls_is_just_a_turn_that_gets_a_reminder():
     cierre = asyncio.run(operador.correr())
     assert modelos.ultimo_usuario == "Responde usando una herramienta."
     assert cierre.estado == "fallida" and cierre.hechos == "No hice cambios." and cierre.verificado
+
+
+def test_leaving_without_saving_is_not_a_change_even_if_flagged():
+    """«Volver sin guardar» nombra el verbo negado: no pasa por el revisor, que podría impedir salir."""
+    guion = [[_llamada("clic", x=144, y=389, objetivo="Volver sin guardar", cambia_datos=True)], FIN]
+    esc, modelos = _correr(guion, bajo_el_punto="Volver")
+    assert esc.clics == [(144, 389)] and modelos.revisiones == 0
+
+
+def test_a_harmless_looking_name_does_not_hide_a_save_button():
+    guion = [[_llamada("clic", x=72, y=185, objetivo="Volver sin guardar", cambia_datos=False)], FIN]
+    esc, _ = _correr(guion, bajo_el_punto="Guardar")
+    assert esc.clics == []
+
+
+def test_the_same_rejected_action_stops_being_reviewed():
+    class Rechaza(FakeModelos):
+        async def chat(self, modelo, mensajes, herramientas=None, **extra):
+            if not herramientas and mensajes[0]["content"] == prompts.REVISOR_GUARDADO:
+                self.revisiones += 1
+                return {"content": '{"aprobar": false, "es_cambio": true, "motivo": "falta un dato"}'}
+            return await super().chat(modelo, mensajes, herramientas, **extra)
+
+    guardar = [_llamada("clic", x=66, y=376, objetivo="Guardar", cambia_datos=True)]
+    esc, modelos = FakeEsc(), Rechaza([guardar] * 5 + [FIN], bajo_el_punto="Guardar")
+    operador = Operador("Abre el formulario de alta.", esc, modelos, FakeTraza(), limite=time.monotonic() + 200)
+    asyncio.run(operador.correr())
+    assert esc.clics == [] and modelos.revisiones == 3
+    assert "ya rechazó 3 veces" in modelos.ultimo_usuario or any("ya rechazó 3 veces" in linea for linea in operador.bitacora)
