@@ -83,3 +83,15 @@ def test_trace_errors_are_read_for_the_deploy_logs(tmp_path):
         encoding="utf-8")
     assert _trace_errors(tmp_path) == [{"accion": "error", "tipo": "ErrorModelo", "detalle": "OpenRouter respondió 400"}]
     assert _trace_errors(tmp_path / "missing") == []
+
+
+def test_scrub_hides_credentials_read_on_screen():
+    from service.runner import scrub
+    out = scrub("Encontré la clave de integración: K9x2-PLM44q-zz81. respuesta: K9x2-PLM44q-zz81", [])
+    assert "K9x2" not in out and "clave de integración: [oculto]" in out
+    assert "PLM44q" not in scrub("La contraseña es Hunter2024 según la ficha.", [])
+    assert "[oculto]" in scrub("token=abcdef1234567890ABCDEF12", [])
+    # Ordinary data stays: codes, NIT, phones, money, dates.
+    normal = "Cliente CL-0141, NIT 901234567, teléfono 3157654321, factura FV-10159 por 1.810.000 el 14/10/2026. respuesta: 45"
+    assert scrub(normal, []) == normal
+    assert scrub("La clave del producto es AB-778.", []) == "La clave del producto es AB-778."

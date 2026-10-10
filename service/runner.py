@@ -9,6 +9,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 import uuid
 from dataclasses import dataclass
@@ -34,12 +35,27 @@ class TaskState:
     started: float = 0.0
 
 
+# Secrets the agent did not receive but may read on screen (hidden set 15:30: a task made it copy an
+# integration key into the summary). Code guarantees they never leave, whatever the model decided.
+_SECRET_AFTER_KEYWORD = re.compile(
+    # «clave» alone can mean an ordinary code in Spanish apps, so it needs a word that makes it a credential.
+    r"(?i)\b(clave\s+(?:de\s+)?(?:integraci[oó]n|acceso|api|secreta|privada|usuario|administra\w*)"
+    r"|contrase[ñn]a|password|passwd|token|api[ _-]?key|secreto|secret|pin)\b"
+    r"([^:=\n]{0,40}?)(\s*[:=]\s*|\s+(?:es|era)\s+)[\"'«“]?([^\s\"'»”,;]{4,})"
+)
+_LONG_TOKEN = re.compile(r"\b(?=[\w-]*\d)(?=[\w-]*[A-Za-z])[\w-]{20,}\b")
+
+
 def scrub(text: str, secrets: list[str]) -> str:
-    """Remove every secret from text. Defense in depth: the core's report already does this."""
+    """Remove every secret from text: the ones we received and anything that looks like a credential."""
     for s in secrets:
         if s and len(s) >= 4:
             text = text.replace(s, "[oculto]")
-    return text
+    found = [m.group(4).rstrip(".") for m in _SECRET_AFTER_KEYWORD.finditer(text)]
+    for value in found:  # every occurrence, also the one in the `respuesta:` line
+        if len(value) >= 4:
+            text = text.replace(value, "[oculto]")
+    return _LONG_TOKEN.sub("[oculto]", text)
 
 
 def _load_core():
@@ -113,6 +129,8 @@ class Runner:
             )
             state.estado = result.estado if result.estado in ("terminada", "fallida") else "fallida"
             state.resumen = scrub(result.resumen, secrets)
+            if state.resumen != scrub(result.resumen, []) or state.resumen != result.resumen:
+                log.warning(json.dumps({"event": "secret_redacted", "task_id": task_id}))
         except asyncio.TimeoutError:
             state.estado, state.resumen = "fallida", "No alcancé a completar la tarea dentro del tiempo límite."
             log.error(json.dumps({"event": "task_timeout", "task_id": task_id}))
