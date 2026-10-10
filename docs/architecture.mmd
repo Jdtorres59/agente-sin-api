@@ -14,7 +14,9 @@ flowchart LR
       ESC["Escalamiento · Sonnet 5.5<br/>tras 2 acciones sin efecto"]
       JUDGE["Juez · Sonnet 5.5<br/>pantalla final + registro:<br/>terminada o fallida"]
       FMT["Formateador · código<br/>línea respuesta,<br/>borra secretos"]
-      PLAN --> EXEC
+      PLAN -->|sin receta| EXEC
+      PLAN -->|"receta: repetir sin modelo"| REP["Repetidor · código<br/>ejecuta la receta paso a paso"]
+      REP -->|pantalla esperada?| VER
       EXEC -->|acción| VER
       VER -->|siguiente paso| EXEC
       VER -->|sin efecto x2| ESC
@@ -22,6 +24,10 @@ flowchart LR
       VER -->|terminó o límite| JUDGE
       JUDGE --> FMT
     end
+    MEM[("Memoria por app<br/>mapa de pantallas, recetas<br/>versionadas, lecciones")]
+    MEM -->|receta + lecciones| PLAN
+    JUDGE -->|"éxito: receta nueva<br/>falla: lección"| MEM
+    VER -->|"no coincide: el Ejecutor<br/>retoma y se actualiza"| EXEC
     API -->|lanza| PLAN
     FMT --> STORE
   end
@@ -34,5 +40,5 @@ flowchart LR
   classDef code fill:#dcebfa,stroke:#3b7dd8,color:#222;
   classDef ext fill:#eeeeee,stroke:#888,color:#222;
   class PLAN,EXEC,ESC,JUDGE model;
-  class API,VER,FMT,VNC,STORE,LOG code;
+  class API,VER,FMT,VNC,STORE,LOG,REP,MEM code;
   class G,DESK ext;
