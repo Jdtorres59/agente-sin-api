@@ -135,6 +135,14 @@ tareas del debrief tienen que caber en la reserva de US$5).
 |---|---|---|---|---|---|---|
 | `5fa8998` (candidato, 17:11-17:42) | 4/4 | 5/5 | 7/8 | 3/3 | US$0,044 | 220 s |
 
+Después de desplegar `9e53002`, cada arreglo se midió en los casos que toca (18:00-18:30):
+
+| Arreglo | Casos | Resultado |
+|---|---|---|
+| Una respuesta sostenida tras trabajar la objeción se acepta a la segunda | J2, S09, S12, S25, S21 | 4/5; S09 pasa (antes `fallida` a los 220 s) |
+| Antes de crear, buscar por el identificador solo | S01, S22 | 2/2; S22 ya no crea el duplicado (47 s) |
+| Si se acaba el tiempo, el cierre conserva la razón ya dada | S20, S21 | 2/2 |
+
 La falla (S09, "el pedido que se registró el sábado"): el agente encontró la respuesta correcta a los
 112 s y el verificador la objetó cuatro veces pidiendo pruebas que la app no da, hasta agotar el
 tiempo. La versión de producción de ese momento falla el mismo caso por otra causa: toma el viernes
@@ -262,11 +270,16 @@ peso según las trazas del set oculto:
 3. **Una tarea imposible se alarga.** Probar que algo no existe pide buscarlo varias veces, y el
    verificador puede pedir más. Si el tiempo se acaba, el cierre conserva la razón que el agente ya había
    dado.
+4. **Las difíciles encadenan saltos** (un pago lleva a un paciente, su consulta a un médico, el médico a
+   una agenda) y el operador, que ve la app por primera vez, no armaba esa cadena: encontraba los datos y
+   se negaba a actuar por una pista que la app no muestra, o no miraba la ficha de la persona. Desde las
+   18:23 la comprensión devuelve un plan de 3 a 7 saltos genéricos, al estilo del planificador jerárquico
+   de Agent S (Agashe et al., 2024), y el operador lo sigue.
 
 Con un día más:
 
-- **Plan de subobjetivos desde la comprensión** (como el planificador jerárquico de Agent S, Agashe et
-  al., 2024): 3 a 7 pasos generales antes de operar, para no explorar a ciegas.
+- **Un operador más capaz solo en las difíciles**: escalar a Sonnet cuando el verificador devuelve un
+  cierre en una tarea de varios saltos, con un tope de costo por tarea.
 - **Recetas que crucen tareas**: hoy una receta repite la navegación de una tarea del mismo tipo; el
   siguiente paso es componer rutas aprendidas para tipos de tarea nuevos.
 - **Más casos difíciles en la suite** (acciones en cadena, datos que dependen de otro registro), que es
