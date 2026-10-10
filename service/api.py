@@ -23,7 +23,8 @@ runner = Runner()
 
 
 def require_token(authorization: str = Header(default="")) -> None:
-    expected = os.environ.get("TEAM_TOKEN", "")
+    # Tolerate stray spaces or quotes pasted into the deploy variables.
+    expected = os.environ.get("TEAM_TOKEN", "").strip().strip("\"'")
     given = authorization.removeprefix("Bearer ").strip()
     if not expected or not secrets.compare_digest(given, expected):
         raise HTTPException(status_code=401, detail="invalid token")
