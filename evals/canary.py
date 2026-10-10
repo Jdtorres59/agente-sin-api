@@ -102,7 +102,16 @@ async def capturar(url_ws: str, password: str, resetear: bool, clics: list) -> I
             await driver.click(x, y)
             await asyncio.sleep(0.5)
             await driver.settle()
-        return await driver.screenshot()
+        # Una captura cuenta solo si dos seguidas son idénticas: a las 15:01 una salió a medio
+        # dibujar (título de la pantalla anterior sobre el cuerpo de la nueva) y dio falsa alarma.
+        anterior = await driver.screenshot()
+        for _ in range(6):
+            await asyncio.sleep(1.0)
+            actual = await driver.screenshot()
+            if comparar(anterior, actual, solo_banda=False)["px"] == 0:
+                return actual
+            anterior = actual
+        return actual
     finally:
         await driver.close()
 
@@ -120,6 +129,9 @@ async def ronda(url_ws: str, password: str, args) -> dict:
             pantallas[nombre] = "base guardada"
             continue
         resultado = comparar(Image.open(base_png), actual, solo_banda=args.sin_reset)
+        if resultado["cambio"]:  # se confirma con una segunda pasada antes de alertar
+            actual = await capturar(url_ws, password, resetear=not args.sin_reset, clics=clics)
+            resultado = comparar(Image.open(base_png), actual, solo_banda=args.sin_reset)
         pantallas[nombre] = f"{resultado['px']} px" + (f" en {resultado['caja']}" if resultado["cambio"] else "")
         if resultado["cambio"]:
             actual.save(CARPETA / f"{sello}-{nombre}-actual.png")

@@ -29,14 +29,24 @@ async def replay(recipe: Recipe, spec: dict, driver: Driver) -> tuple[ReplayResu
     def stop(reason: str) -> tuple[ReplayResult, list[Step]]:
         return ReplayResult(False, done, done, reason), executed
 
-    for action in group_actions(recipe.steps):
+    actions = group_actions(recipe.steps)
+    for i, action in enumerate(actions):
         if time.monotonic() > limit:
             return stop("se acabó el tiempo reservado para la receta")
         first = action[0]
         x, y = first.x, first.y
         if first.kind in ("click", "double_click"):
             await driver.settle()
-            found = locate_anchor(await driver.screenshot(), first.anchor_png, first.x, first.y) if first.anchor_png else None
+            screen = await driver.screenshot()
+            following = actions[i + 1][0] if i + 1 < len(actions) and len(actions[i + 1]) == 1 else None
+            if following is not None and following.kind == "click" and following.anchor_png \
+                    and locate_anchor(screen, following.anchor_png, following.x, following.y) is not None:
+                # The next click's target is already on screen, so this click was exploration
+                # (production 15:00: «Archivo» opened before «Comercial»). Skipped; the relearned
+                # trace will not have it.
+                done += len(action)
+                continue
+            found = locate_anchor(screen, first.anchor_png, first.x, first.y) if first.anchor_png else None
             if found is None:
                 return stop(f"el paso {done + 1} ya no coincide con la pantalla (la interfaz cambió o el estado es otro)")
             x, y = found[0], found[1]

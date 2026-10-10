@@ -269,3 +269,21 @@ def test_verifier_feedback_becomes_a_lesson_for_that_task_kind(tmp_path):
     result.feedback = ["comprobar en la lista que exista un solo registro con ese código"]
     m.learn(app, SPEC, result)
     assert "la verificación pidió: comprobar en la lista" in m.notes(app)
+
+
+def test_replay_skips_a_click_whose_next_target_is_already_visible(tmp_path):
+    m = memory(tmp_path)
+    explore = Step("click", 220, 60, anchor_png=anchor(HOME, 220, 60), screen_changed_px=4000, label="menú Ayuda")
+    recipe = Recipe("app-x", "crear:proveedor", 1, [explore] + safe_prefix(creation_trace(), SPEC))
+    driver = app_driver()
+    result = asyncio.run(m.replay(recipe, SPEC, driver))
+    assert result.ok and "click 220,60" not in driver.actions and driver.actions[0] == "click 100,60"
+    assert "menú Ayuda" not in result.reason
+
+
+def test_replay_keeps_a_click_that_opens_the_next_target():
+    # In the creation trace the "Nuevo" button only exists after clicking the menu: nothing is skipped.
+    driver = app_driver()
+    recipe = Recipe("app-x", "crear:proveedor", 1, safe_prefix(creation_trace(), SPEC))
+    result = asyncio.run(SQLiteMemory(":memory:").replay(recipe, SPEC, driver))
+    assert result.ok and driver.actions[:2] == ["click 100,60", "click 80,120"]
