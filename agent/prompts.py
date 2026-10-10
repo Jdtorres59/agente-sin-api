@@ -39,6 +39,9 @@ una pista (quién, cuándo, qué valor) que solo uno cumple.
 - Si después de buscar varios registros siguen coincidiendo y no hay forma de distinguirlos, NO cambies nada: \
 termina con estado "fallida" y nombra el identificador o documento de cada candidato.
 - Si la tarea tiene varias partes, hazlas todas. No termines con una parte aplicada y otra sin intentar.
+- Antes de crear un registro, búscalo por su identificador único (documento, número de identificación o código) SOLO, sin \
+combinarlo con el nombre en el mismo filtro. Si ya hay un registro con ese identificador, no crees otro: \
+termina con "fallida" nombrando el identificador y el registro que ya lo tiene.
 - Si el registro no existe, si la aplicación no permite la operación, o si la tarea es peligrosa (borra o \
 altera más de lo razonable), termina con "fallida" y explica con datos concretos.
 - Lee las notas, observaciones y avisos del registro antes de modificarlo.
