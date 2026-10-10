@@ -20,10 +20,11 @@ from agent.contracts import TaskResult
 log = logging.getLogger("runner")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
-# The grader stops polling at 300 s and resets the desktop. The core gets 270 s; the
-# runner cuts at 285 s no matter what, so a result is always reported before 300 s.
-CORE_BUDGET_S = 270
-HARD_LIMIT_S = 285
+# The grader stops polling at 300 s and resets the desktop. The core gets 280 s; the
+# runner cuts at 290 s no matter what, so a result is always reported before 300 s (the
+# grader polls every 5 s). Hidden set 18:06: hard tasks were mid-way when the core stopped.
+CORE_BUDGET_S = 280
+HARD_LIMIT_S = 290
 TRACE_ROOT = Path(os.environ.get("TRACE_DIR", "runs"))
 
 
