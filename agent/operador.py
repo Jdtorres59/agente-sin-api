@@ -17,6 +17,15 @@ from .tablas import Tabla
 from .traza import Traza
 
 MAX_PASOS = 40
+
+# Verbos de acción en el nombre de un control. Si el operador hace clic en algo que se llama así,
+# pasa por la compuerta aunque lo haya marcado como inofensivo: la etiqueta del modelo no basta.
+_PARECE_CAMBIO = re.compile(
+    r"\b(guard|grab|crea|elimin|borr|quit|confirm|export|import|gener|envi|aprob|rechaz|anul|revert|"
+    r"acept|aplic|registrar|actualiz|pagar|cerrar caja|save|delet|remov|submit|creat|approv|reject|send|"
+    r"apply|updat|accept)|\b(sí|si|ok|yes)\b",
+    re.IGNORECASE,
+)
 RESERVA_SEGUNDOS = 30  # margen para verificar y reportar antes del límite
 
 
@@ -161,6 +170,11 @@ class Operador:
         self.supervisor = os.environ.get("SUPERVISOR_MODEL", "anthropic/claude-sonnet-5.5")
         self.bitacora: list[str] = []
         self.confirmaciones = 0
+        self.cambios: list[str] = []  # acciones que pasaron la compuerta y se ejecutaron
+        self.paso = 0
+        self.firmas: list[str] = []  # qué pidió el operador en cada turno, para detectar bucles
+        self.sin_efecto = 0  # acciones seguidas que no cambiaron la pantalla
+        self.escalar = False  # el próximo turno lo decide el supervisor
         self.tabla: Tabla | None = None
         self.evidencia = None  # captura tomada justo después del último cambio de datos
 
@@ -201,9 +215,10 @@ class Operador:
         return _json(contenido) or {"aprobar": False, "conforme": False, "motivo": contenido[:300], "problema": contenido[:300]}
 
     async def _aprobar_guardado(self, descripcion: str) -> tuple[bool, str]:
+        previas = "; ".join(self.cambios) or "ninguna"
         veredicto = await self._consultar_supervisor(
             prompts.REVISOR_GUARDADO,
-            f"Cambios ya aplicados en esta tarea: {self.confirmaciones}.\nACCIÓN PROPUESTA: {descripcion}",
+            f"ACCIONES DE CAMBIO YA EJECUTADAS EN ESTA TAREA: {previas}.\nACCIÓN PROPUESTA: {descripcion}",
         )
         return bool(veredicto.get("aprobar")), str(veredicto.get("motivo", "sin motivo"))
 
@@ -220,7 +235,11 @@ class Operador:
 
     async def _ejecutar(self, nombre: str, a: dict) -> str:
         cambio = lambda hubo: "la pantalla cambió" if hubo else "la pantalla NO cambió (puede no haber tenido efecto)"  # noqa: E731
+        if nombre == "clic" and not a.get("cambia_datos") and _PARECE_CAMBIO.search(a.get("objetivo", "")):
+            a["cambia_datos"] = True
+        revisada = False
         if nombre in ("clic", "tecla") and a.get("cambia_datos"):
+            revisada = True
             descripcion = (
                 f"clic en «{a.get('objetivo', '')}» ({a.get('x')}, {a.get('y')})"
                 if nombre == "clic"
@@ -230,7 +249,10 @@ class Operador:
             if not aprobado:
                 return f"NO ejecutada. El revisor la rechazó: {motivo}"
             self.confirmaciones += 1
-        if nombre in ("clic", "tecla") and a.get("cambia_datos"):
+            self.cambios.append(f"turno {self.paso}: {descripcion}")
+        if revisada:
+            # Toda acción que pasó por la compuerta deja su captura inmediata: los avisos de la
+            # aplicación pueden durar un par de segundos y son la evidencia del verificador.
             if nombre == "clic":
                 hubo = await self.esc.clic(a["x"], a["y"], veces=a.get("veces", 1))
             else:
@@ -255,7 +277,9 @@ class Operador:
             return cambio(await self.esc.rueda(a["x"], a["y"], a["pasos"]))
         if nombre == "leer_pantalla":
             texto = await self.esc.leer_pantalla()
-            return "no se pudo leer el texto de la pantalla" if texto is None else f"TEXTO DE LA PANTALLA:\n{texto[:8000]}"
+            if texto is None:
+                return "no se pudo leer el texto de la pantalla"
+            return f"TEXTO DE LA PANTALLA (al leer se cerraron los menús que hubiera abiertos):\n{texto[:8000]}"
         if nombre == "leer_campo":
             leido = await self.esc.leer_campo(a["x"], a["y"])
             return "el campo está vacío o no es un campo de texto" if leido is None else f"el campo contiene «{leido}»"
@@ -371,11 +395,16 @@ class Operador:
         rechazos = 0
 
         for paso in range(1, MAX_PASOS + 1):
+            self.paso = paso
             if self._quedan() < RESERVA_SEGUNDOS:
                 return self._cierre_forzado("se agotó el tiempo", paso)
             self._podar_capturas(mensajes)
+            modelo_turno = self.supervisor if self.escalar else self.modelo
+            if self.escalar:
+                self.traza.evento(paso=paso, accion="escalamiento", modelo=modelo_turno)
+            self.escalar = False
             respuesta = await self.modelos.chat(
-                self.modelo, mensajes, HERRAMIENTAS, max_tokens=2500, tool_choice="required", reasoning={"effort": "low"}
+                modelo_turno, mensajes, HERRAMIENTAS, max_tokens=2500, tool_choice="required", reasoning={"effort": "low"}
             )
             llamadas = respuesta.get("tool_calls") or []
             mensajes.append({"role": "assistant", "content": respuesta.get("content") or "", "tool_calls": llamadas})
@@ -384,13 +413,15 @@ class Operador:
                 mensajes.append({"role": "user", "content": "Responde usando una herramienta."})
                 continue
 
-            resultados, cierre, cortar = [], None, False
+            resultados, cierre, cortar, hubo_clic = [], None, False, False
             for llamada in llamadas:
                 nombre = llamada["function"]["name"]
                 try:
                     args = json.loads(llamada["function"].get("arguments") or "{}")
                 except json.JSONDecodeError:
                     args = {}
+                if not cortar and nombre in ("leer_pantalla", "leer_lista") and hubo_clic:
+                    cortar = True
                 if cortar:
                     resultado = "no ejecutada: se interrumpió el lote; revisa la captura y decide de nuevo"
                 elif nombre == "terminar":
@@ -409,13 +440,27 @@ class Operador:
                         resultado = f"argumentos inválidos ({type(error).__name__}: {error})"
                     # Tras un cambio de datos o un rechazo, el modelo debe mirar antes de seguir.
                     cortar = bool(args.get("cambia_datos")) or resultado.startswith("NO ejecutada")
+                    hubo_clic = hubo_clic or nombre == "clic"
+                    if nombre in ("clic", "tecla", "escribir", "rueda"):
+                        self.sin_efecto = self.sin_efecto + 1 if "NO cambió" in resultado else 0
                     self.bitacora.append(f"{paso}. {nombre} {json.dumps(args, ensure_ascii=False)} → {resultado[:1500]}")
                 self.traza.evento(paso=paso, accion=nombre, args=args, resultado=resultado[:3000])
                 resultados.append({"role": "tool", "tool_call_id": llamada["id"], "content": resultado})
             mensajes.extend(resultados)
 
             if cierre is None:
-                mensajes.append(await self._observacion("Resultados arriba.", paso + 1))
+                self.firmas.append(json.dumps([(c["function"]["name"], c["function"].get("arguments")) for c in llamadas]))
+                aviso = "Resultados arriba."
+                repetido = len(self.firmas) >= 3 and len(set(self.firmas[-3:])) == 1
+                if repetido or self.sin_efecto >= 2:
+                    # Escalamiento: el siguiente turno lo decide el modelo fuerte, con el aviso a la vista.
+                    self.escalar = True
+                    self.sin_efecto = 0
+                    aviso = (
+                        "AVISO: llevas varios turnos repitiendo lo mismo o sin efecto en la pantalla. No repitas esa "
+                        "acción. Mira con cuidado la captura actual y cambia de estrategia."
+                    )
+                mensajes.append(await self._observacion(aviso, paso + 1))
                 continue
 
             cierre.pasos, cierre.confirmaciones, cierre.bitacora = paso, self.confirmaciones, self.bitacora

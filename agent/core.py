@@ -32,6 +32,7 @@ async def run_task(
     try:
         await driver.connect(url, password)
         resultado.spec = await comprender(tarea, modelos)
+        traza.evento(accion="spec", spec=resultado.spec)
 
         notas, aviso = "", ""
         if memory is not None:
