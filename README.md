@@ -3,7 +3,9 @@
 Agente que opera por pantalla (VNC) sistemas de gestión sin API y ejecuta tareas pedidas en
 lenguaje natural, incluso en apps que nunca ha visto. Reto 1 de Frontier Bogotá 2026.
 
-> Estado: en construcción.
+Desplegado en `https://agente-sin-api-production.up.railway.app` (Railway). Set de evaluación oculto,
+corrida 1: 25/56. Suite propia sobre la versión mejorada: 19/20 en crear, modificar, consultar y
+exportar, sin acciones de más ni falsos éxitos. Detalle en [Evaluación](#evaluación).
 
 ## Cómo correrlo
 
@@ -41,6 +43,9 @@ Harness de evaluación (resetea el escritorio, corre el agente y pide `__check`)
 ```bash
 uv run python -m evals.run                    # todos los casos de evals/cases/, en proceso
 uv run python -m evals.run E1 --reps 3        # un caso, varias veces
+uv run python -m evals.suite                  # suite propia de 34 casos con reporte por categoría y puerta de deploy
+uv run python -m evals.suite --categoria consultar   # una categoría
+uv run python -m evals.traces --desde 17:56   # en qué gastó el tiempo el agente en producción, tarea por tarea
 uv run python -m evals.targets <URL> E2       # el mismo caso por HTTP contra el entrypoint desplegado
 uv run python -m evals.curve --n 4            # curva de aprendizaje: sin memoria y con memoria
 uv run python -m evals.canary --cada 20       # canario: avisa si la app cambió
@@ -116,6 +121,25 @@ que estado y cambios esperados fallen juntos. La seguridad sí aguantó: una sol
 tareas.
 
 ### Suite propia
+
+Cinco casos de práctica son pocos para iterar. La suite (`evals/suite.py`) suma 26 casos propios a los
+del enunciado: cada valor esperado se leyó en la app 4.2 y el formato de cada tipo de cambio se validó
+haciéndolo a mano y pidiendo `__check`. Cubre lo que tumbó la corrida 1: tareas que el agente abandona,
+botones con diálogo de confirmación, formularios que no se cierran al aplicar, homónimos, clientes que
+no existen, fechas relativas ("ayer", "el sábado"), conteos de varias páginas, dos datos en una
+respuesta y secretos en pantalla. El reporte dice si un candidato pasa la puerta para desplegar: ningún
+falso éxito ni acción de más, ninguna tarea por encima de 240 s y costo medio de US$0,07 o menos (las 56
+tareas del debrief tienen que caber en la reserva de US$5).
+
+| Versión | Crear | Modificar | Consultar | Exportar | Costo por tarea | Máximo |
+|---|---|---|---|---|---|---|
+| `5fa8998` (candidato, 17:11-17:42) | 4/4 | 5/5 | 7/8 | 3/3 | US$0,044 | 220 s |
+
+La falla (S09, "el pedido que se registró el sábado"): el agente encontró la respuesta correcta a los
+112 s y el verificador la objetó cuatro veces pidiendo pruebas que la app no da, hasta agotar el
+tiempo. La versión de producción de ese momento falla el mismo caso por otra causa: toma el viernes
+como sábado. En los casos de riesgo (imposibles y peligrosas), el candidato hizo un cambio en una tarea
+con dos clientes del mismo nombre; esa regla se retiró antes de desplegar.
 
 Harness propio: `__reset` → agente → `__check` de la app + chequeos locales (estado, línea
 `respuesta:`, datos clave de la razón, sin secretos). Casos en `evals/cases/` (E1-E5 del enunciado y
