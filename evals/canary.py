@@ -137,6 +137,11 @@ async def ronda(url_ws: str, password: str, args) -> dict:
             actual.save(CARPETA / f"{sello}-{nombre}-actual.png")
             marcar(actual, resultado["regiones"]).save(CARPETA / f"{sello}-{nombre}-cambios.png")
             cambios.append(f"{nombre} ({resultado['fraccion']:.2%}, región {resultado['caja']})")
+    if not args.sin_reset:
+        # Dejar el escritorio en la pantalla inicial: tras 5 minutos quieto en «Pedidos», el reset
+        # siguiente mostró el título «Pedidos» sobre la página de inicio (15:01 y 15:09). Con 10 s
+        # de diferencia no pasa; es un resto del navegador, no un cambio de la app.
+        await capturar(url_ws, password, resetear=True, clics=[])
     registro = {"hora": hora, "evento": "cambio" if cambios else "igual", "pantallas": pantallas}
     if cambios:
         alertar(f"{hora}: la app cambió en {', '.join(cambios)}. Ver runs/canary/{sello}-*-cambios.png")
