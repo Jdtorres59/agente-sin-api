@@ -113,7 +113,7 @@ una con `__reset` y `__check`. Sin memoria, y con una memoria nueva que aprende 
 
 | Corrida | Modo (tareas 2-4) | Pasan | Llamadas (media) | Costo (media) | Tiempo (media) |
 |---|---|---|---|---|---|
-| 14:23, núcleo `4b5f0ac`, memoria `95e0d8f` | Sin memoria | 3/3 | 20,0 | US$0,0269 | 93 s |
+| 14:23, main en `4b5f0ac` | Sin memoria | 3/3 | 20,0 | US$0,0269 | 93 s |
 | | **Con memoria** | **3/3** | **12,7 (−37%)** | **US$0,0224 (−17%)** | **67 s (−28%)** |
 | 13:42, primera versión | Sin memoria | 2/3 | 14,3 | US$0,0319 | 76 s |
 | | Con memoria | 2/3 | 13,3 | US$0,0405 | 94 s |
