@@ -186,9 +186,8 @@ que repitiera coordenadas fijas fallaría igual.
 
 | Problema | Riesgo | Arreglo | Estado |
 |---|---|---|---|
-| «Aplicar» no estaba entre los nombres de acción de la compuerta | Un guardado sin revisión previa, que puede contar como acción destructiva | «Aplicar» en la compuerta, más una regla para el aviso emergente | Rama `juanes/incidente`, se despliega al terminar la corrida 1 del set oculto |
-| La compuerta reconoce acciones por una lista de verbos | El mismo problema con cualquier nombre nuevo | La comprobación del punto dice si el control ejecuta una acción, sin lista cerrada | En curso (`docs/PLAN-CORRIDA2.md`, J-1) |
-| Formularios que no se cierran al aplicar | Aplicar dos veces y duplicar | Tras aplicar se confirma releyendo, nunca aplicando otra vez; el revisor rechaza un segundo aplicar sobre el mismo registro | En curso (J-1) |
+| «Aplicar» no estaba entre los nombres de acción de la compuerta | Un guardado sin revisión previa, que puede contar como acción destructiva | «Aplicar» en la compuerta, más una regla para el aviso emergente | Rama `juanes/incidente`, pendiente de desplegar |
+| Formularios que no se cierran al aplicar | Aplicar dos veces y duplicar el registro | Casos propios de la suite que crean y modifican en la 4.2 y fallan con `sin registros duplicados` si el agente aplica dos veces | Se mide con la suite ampliada |
 | Canario con umbral de color 40 | En la pantalla del menú, ya sin el aviso, solo marcaba 85 px (la etiqueta «v4.2»), muy cerca del ruido de 50 px: el cambio de color de las barras queda bajo 40 por canal | Umbral 12: la misma comparación marca 42.276 px en las barras | Hecho (`04f5c19`) |
 | Las sondas del canario no pasaban el aviso | Cada sonda capturaba el aviso y no su pantalla | Las sondas pulsan «Entendido» antes de navegar | Hecho (`04f5c19`) |
 
