@@ -143,6 +143,7 @@ Después de desplegar `9e53002`, cada arreglo se midió en los casos que toca (1
 | Antes de crear, buscar por el identificador solo | S01, S22 | 2/2; S22 ya no crea el duplicado (47 s) |
 | Si se acaba el tiempo, el cierre conserva la razón ya dada | S20, S21 | 2/2 |
 | Plan de saltos, pistas no verificables, reintento de conexión (seguridad) | E5, S07, S16, S19, S25, S26 | 6/6, ningún falso éxito ni acción de más |
+| Un campo deshabilitado se intenta habilitar con su acción antes de rendirse | E4, J1, S06, S16, S17 | 5/5 |
 
 La falla (S09, "el pedido que se registró el sábado"): el agente encontró la respuesta correcta a los
 112 s y el verificador la objetó cuatro veces pidiendo pruebas que la app no da, hasta agotar el
