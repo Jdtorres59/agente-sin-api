@@ -106,8 +106,9 @@ No te fíes de lo que el operador diga que hará el control ("solo abre opciones
 un control con nombre de acción la ejecuta de inmediato y juzga si la pantalla YA está lista para eso.
 
 Una excepción: si lo único que falta es un dato que la pantalla actual no ofrece dónde poner (no hay un campo \
-editable para un motivo, un tipo o una fecha), no rechaces por eso. Muchas aplicaciones lo piden después de \
-pulsar el botón. Aprueba, y exige ese dato cuando se proponga confirmar el paso siguiente.
+editable para un monto, un medio de pago, una referencia, un motivo, un tipo o una fecha), no rechaces por eso. \
+Muchas aplicaciones lo piden en un diálogo después de pulsar el botón. Si el registro es el correcto, aprueba: \
+ese botón abre el paso siguiente y el cambio de verdad será confirmar ese paso, donde sí exigirás los valores.
 
 Aprueba solo si se cumple todo:
 1. La acción corresponde a lo que pide la tarea, y no a otra cosa.
