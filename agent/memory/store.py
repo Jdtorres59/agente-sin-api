@@ -8,7 +8,8 @@ verified). Everything else only feeds the statistics. Tables:
              matching gets a new version from the next verified trace; one that fails more than it
              succeeds is no longer offered.
 - fields:    where each TaskSpec field was filled, to give the operator a map in its prompt.
-- lessons:   short facts learned the hard way (the interface changed at step k, ...).
+- lessons:   short facts learned the hard way: the interface changed at step k, or what the verifier
+             demanded before accepting a task of this kind (so the operator does it the first time).
 - episodes:  one row per task: cost, model steps, replayed steps. The learning curve comes from here.
 """
 
@@ -35,7 +36,7 @@ CREATE TABLE IF NOT EXISTS recipes (app_id TEXT, tipo TEXT, entidad TEXT, versio
     successes INTEGER DEFAULT 0, failures INTEGER DEFAULT 0, created TEXT, PRIMARY KEY (app_id, tipo, entidad, version));
 CREATE TABLE IF NOT EXISTS fields (app_id TEXT, entidad TEXT, slot TEXT, x INTEGER, y INTEGER, seen INTEGER, last TEXT,
     PRIMARY KEY (app_id, entidad, slot));
-CREATE TABLE IF NOT EXISTS lessons (id INTEGER PRIMARY KEY, ts TEXT, app_id TEXT, text TEXT);
+CREATE TABLE IF NOT EXISTS lessons (id INTEGER PRIMARY KEY, ts TEXT, app_id TEXT, text TEXT, scope TEXT DEFAULT '');
 CREATE TABLE IF NOT EXISTS episodes (id INTEGER PRIMARY KEY, ts TEXT, app_id TEXT, tipo TEXT, entidad TEXT, estado TEXT,
     verified INTEGER, cost REAL, model_steps INTEGER, replayed_steps INTEGER, recipe_version INTEGER, replay_ok INTEGER);
 """
@@ -167,6 +168,9 @@ class SQLiteMemory:
                 )
                 _log("recipe_learned", app_id=app_id, recipe=f"{tipo}:{entidad}", version=version, steps=len(steps))
             self._map_fields(app_id, entidad, trace, spec)
+            # Self-feedback: what the verifier asked for before it accepted. Next time it goes in the prompt.
+            for objection in getattr(result, "feedback", None) or []:
+                self._lesson(app_id, f"Antes de aceptar, la verificación pidió: {objection}", scope=f"{tipo} {entidad}")
         self.db.commit()
 
     def _map_fields(self, app_id: str, entidad: str, trace: list[Step], spec: dict) -> None:
@@ -183,8 +187,8 @@ class SQLiteMemory:
                 (app_id, entidad, names[slot], action[0].x, action[0].y, _now()),
             )
 
-    def _lesson(self, app_id: str, text: str) -> None:
-        self.db.execute("INSERT INTO lessons (ts, app_id, text) VALUES (?, ?, ?)", (_now(), app_id, text[:300]))
+    def _lesson(self, app_id: str, text: str, scope: str = "") -> None:
+        self.db.execute("INSERT INTO lessons (ts, app_id, text, scope) VALUES (?, ?, ?, ?)", (_now(), app_id, text[:300], scope))
 
     # --- what the operator reads -------------------------------------------------------------
 
@@ -208,9 +212,13 @@ class SQLiteMemory:
                 line += " Ruta que funcionó: " + " → ".join(route[:8]) + "."
             if fields:
                 line += " Campos vistos: " + ", ".join(f"«{s}» en ({x}, {y})" for s, x, y in fields) + "."
+            demanded = self.db.execute(
+                "SELECT text FROM lessons WHERE app_id = ? AND scope = ? ORDER BY id DESC LIMIT 2", (app_id, f"{tipo} {entidad}")
+            ).fetchall()
+            line += "".join(f"\n  {t}" for (t,) in demanded)
             lines.append(line)
         lessons = self.db.execute(
-            "SELECT text FROM lessons WHERE app_id = ? ORDER BY id DESC LIMIT 3", (app_id,)
+            "SELECT text FROM lessons WHERE app_id = ? AND scope = '' ORDER BY id DESC LIMIT 3", (app_id,)
         ).fetchall()
         if not lines and not lessons:
             return ""

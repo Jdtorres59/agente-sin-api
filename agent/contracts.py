@@ -58,6 +58,7 @@ class TaskResult:
     verified: bool = False           # clean-context verification confirmed the outcome
     spec: dict = field(default_factory=dict)  # the TaskSpec used (tipo, referente, valores, ...)
     app_id: str | None = None        # Memory.fingerprint of the app, if computed
+    feedback: list[str] = field(default_factory=list)  # verifier objections met before closing (added 14:05)
 
 
 @dataclass

@@ -81,7 +81,8 @@ async def correr(caso, memoria, http, base, url_ws, password, carpeta: Path) -> 
     pasa = bool(remoto.get("pass")) and all(chequeo_local(caso, resultado, password).values())
     fila = {"id": caso["id"], "pasa": pasa, "estado": resultado.estado, "segundos": segundos,
             "costo": resultado.cost_usd, "llamadas": llamadas_del_modelo(carpeta),
-            "pasos_modelo": len(resultado.steps), "pasos_receta": 0, "receta_ok": None, "traza": str(carpeta)}
+            "pasos_modelo": len(resultado.steps), "pasos_receta": 0, "receta_ok": None, "traza": str(carpeta),
+            "fallan": [c["nombre"] for c in remoto.get("checks", []) if not c.get("ok")]}
     if memoria is not None:
         # En desarrollo solo se aprende de lo que además pasó __check.
         resultado.verified = resultado.verified and pasa

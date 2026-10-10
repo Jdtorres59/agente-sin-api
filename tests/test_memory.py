@@ -260,3 +260,12 @@ def test_replay_reports_what_it_did(tmp_path):
     recipe = Recipe("app-x", "crear:proveedor", 1, safe_prefix(creation_trace(), SPEC))
     result = asyncio.run(m.replay(recipe, SPEC, app_driver()))
     assert "clic en «menú Registros»" in result.reason and "escribió el dato «ciudad»" in result.reason
+
+
+def test_verifier_feedback_becomes_a_lesson_for_that_task_kind(tmp_path):
+    m = memory(tmp_path)
+    app = m.fingerprint(HOME)
+    result = verified(creation_trace())
+    result.feedback = ["comprobar en la lista que exista un solo registro con ese código"]
+    m.learn(app, SPEC, result)
+    assert "la verificación pidió: comprobar en la lista" in m.notes(app)
