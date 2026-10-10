@@ -34,7 +34,9 @@ garantiza.**
 
 Modelos (OpenRouter): operador `anthropic/claude-haiku-5.5` en cada paso; supervisor
 `anthropic/claude-sonnet-5.5` en Comprensión, revisión pre-guardado, Verificación y escalamiento
-tras 2 acciones sin efecto. Tope duro US$0,25 por tarea.
+tras 2 acciones sin efecto. Tope duro US$0,25 por tarea. **El núcleo lee los modelos de las
+variables `AGENT_MODEL` (operador) y `SUPERVISOR_MODEL` (supervisor)**; nunca los deja fijos en el
+código, para poder cambiarlos en Railway y en el bake-off sin tocar código.
 
 ## Dueños de archivos (regla dura)
 
