@@ -40,11 +40,13 @@ _SOLO_NAVEGA = re.compile(r"\b(buscar|filtrar|siguiente|anterior|volver|search|f
 MAX_CONSEJOS = 3  # consultas al supervisor por atasco, por tarea
 MAX_RECHAZOS_IGUALES = 3  # veces que el revisor rechaza la misma acción antes de dejar de consultarlo
 _NEGADO = re.compile(r"\b(sin|no|without|not)\s+\w+", re.IGNORECASE)
+# «Aplicar» guarda un formulario, pero «Aplicar filtro» solo filtra.
+_SOLO_FILTRA = re.compile(r"\b(aplicar|apply)\s+(el\s+|los\s+)?(filtros?|filters?|b[uú]squeda)", re.IGNORECASE)
 
 
 def _nombra_cambio(texto: str) -> bool:
     """El nombre del control sugiere una acción de cambio. «Volver sin guardar» no: el verbo va negado."""
-    return bool(_PARECE_CAMBIO.search(_NEGADO.sub(" ", texto)))
+    return bool(_PARECE_CAMBIO.search(_SOLO_FILTRA.sub(" ", _NEGADO.sub(" ", texto))))
 
 
 def _palabras(texto: str) -> set[str]:

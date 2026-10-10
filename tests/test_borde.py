@@ -37,12 +37,12 @@ def test_text_strokes_and_text_caret_are_not_borders():
 
 
 def test_gate_pattern_matches_action_verbs_but_not_lookalikes():
-    from agent.operador import _PARECE_CAMBIO as patron
+    from agent.operador import _nombra_cambio
 
-    for nombre in ("Guardar", "botón Exportar (ver opciones)", "Eliminar registro", "Sí", "Generar reporte", "Save"):
-        assert patron.search(nombre), nombre
+    for nombre in ("Guardar", "botón Exportar (ver opciones)", "Eliminar registro", "Sí", "Generar reporte", "Save", "Aplicar"):
+        assert _nombra_cambio(nombre), nombre
     for nombre in ("Aplicar filtro", "Datos generales", "Actualizar lista", "Envíos", "Importe total", "Buscar", "Nuevo registro"):
-        assert not patron.search(nombre), nombre
+        assert not _nombra_cambio(nombre), nombre
 
 
 def test_point_inside_a_bordered_control_is_recognised():
