@@ -108,16 +108,26 @@ J1, una ciudad que no existe en la lista cerrada).
 | 13:15 | `ca6d5f5` (compuerta por nombre del control) | 5/5 | US$0,115 | 55 s |
 | 13:38 | `46c27c0` (guarda de borde) | 5/5, y E1 3/3 | US$0,115 | 56 s |
 
-Curva de aprendizaje (13:42, `evals/curve.py`, 4 tareas de crear con datos distintos):
+Curva de aprendizaje (`evals/curve.py`): cuatro tareas de crear con datos y redacción distintos, cada
+una con `__reset` y `__check`. Sin memoria, y con una memoria nueva que aprende de la tarea 1.
 
-| Modo | Pasan | Llamadas (media) | Costo (media) | Tiempo (media) |
-|---|---|---|---|---|
-| Sin memoria | 3/4 | 13,5 | US$0,030 | 72 s |
-| Con memoria (tareas 2-4) | 2/3 | 13,3 | US$0,041 | 94 s |
+| Corrida | Modo (tareas 2-4) | Pasan | Llamadas (media) | Costo (media) | Tiempo (media) |
+|---|---|---|---|---|---|
+| 14:23, núcleo `4b5f0ac`, memoria `95e0d8f` | Sin memoria | 3/3 | 20,0 | US$0,0269 | 93 s |
+| | **Con memoria** | **3/3** | **12,7 (−37%)** | **US$0,0224 (−17%)** | **67 s (−28%)** |
+| 13:42, primera versión | Sin memoria | 2/3 | 14,3 | US$0,0319 | 76 s |
+| | Con memoria | 2/3 | 13,3 | US$0,0405 | 94 s |
 
-La primera versión de la memoria **no mejoró**: la receta dejaba una búsqueda escrita sin ejecutar y
-el verificador devolvía la tarea. Además, ~70% del costo es Sonnet (comprensión, revisión y
-verificación), que la memoria no salta a propósito. Ver [FALLAS.md](FALLAS.md).
+Qué aprendió en la corrida de las 14:23: la receta repite sin modelo la ruta «menú Comercial →
+submenú Maestros → opción Clientes» (3 clics, 13 s, anclas verificadas) y las notas le dan al
+operador la ruta y dónde está cada campo («NIT» en (239, 180), «nombre» en (463, 136)...). El ahorro
+de costo es menor que el de llamadas porque la mayor parte del costo es Sonnet (comprensión,
+revisión y verificación), que la memoria no salta a propósito.
+
+La primera versión no mejoró: la receta dejaba una búsqueda escrita sin ejecutar y el verificador
+devolvía la tarea. Se corrigió (una búsqueda a medias ya no entra en la receta) y Juanes agregó al
+núcleo las etiquetas de cada clic y las objeciones del verificador. Límite: son 3 tareas por modo y
+un solo tipo de tarea; la varianza entre corridas es alta (11 a 22 llamadas para la misma tarea).
 
 ## Incidente
 
