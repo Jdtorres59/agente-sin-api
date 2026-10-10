@@ -59,14 +59,21 @@ unitaria y qué categorías de la suite deberían mejorar (`uv run python -m eva
 
 ## 4. Puerta para fusionar y desplegar
 
+Lo que se califica es la corrida del set oculto en el debrief (confirmado con el staff a las 17:15):
+56 tareas contra lo que esté desplegado a las 20:00. Las corridas de la tarde solo sirven para medir y
+para que la memoria aprenda la app; por eso se puede desplegar durante una de ellas (se pierde, como
+mucho, la tarea en curso), pero nunca después de las 19:15.
+
 Un candidato se despliega solo si la suite completa, contra la última versión desplegada:
 
 1. No agrega ningún caso con acción fuera de la tarea, duplicado, secreto o falso éxito.
 2. Pasa al menos los mismos casos en total.
 3. Ninguna tarea pasa de 240 s.
+4. El costo medio por tarea es de US$0,07 o menos: las 56 tareas del debrief tienen que caber en la
+   reserva de US$5 con margen.
 
-Nadie despliega durante una corrida del set oculto. Cada deploy se confirma con `/health` y una tarea
-por HTTP antes de lanzar la corrida.
+Cada deploy se confirma con `/health` y una tarea por HTTP. La memoria (`/data/memory.db`) no se
+borra: lo que aprenda en las corridas de la tarde sobre la app de evaluación lo usa en el debrief.
 
 ## 5. Suite propia (Juanda)
 
@@ -102,10 +109,11 @@ Los patrones que traiga la investigación reemplazan los casos menos útiles de 
 
 | Hora | Juanes | Juanda |
 |---|---|---|
-| 16:45-17:10 | Investigación y diagnóstico | `evals/suite.py` y primeros 15 casos |
-| 17:10-17:40 | Plan; primeros arreglos con prueba | 30 casos; suite completa sobre la versión desplegada (línea base) |
-| 17:40-18:10 | Iterar con subconjuntos | Suite completa sobre el candidato; reporte |
-| ~18:10 | Deploy si pasa la puerta | **Corrida 2 del set oculto** |
-| 18:15-18:30 | Diagnóstico de la corrida 2 con el mismo método | Reporte y README |
-| 18:30 | Congelar funciones | Prueba de jurado |
-| ~19:00 | | Corrida 3, solo con arreglos medidos |
+| ~17:30 | Corrida 1 termina (56 tareas) | Suite sobre `juanes/mejora` |
+| ~17:45 | Deploy del candidato si pasa la puerta | **Lanza la corrida 2** (~2 h, solo medición) |
+| 17:45-18:45 | Diagnóstico de la corrida 2 en vivo con las trazas; arreglos con prueba | Suite completa sobre cada candidato |
+| ~18:45 | Deploy si pasa la puerta (aunque la corrida 2 siga) | Verifica `/health` y una tarea |
+| 18:45-19:15 | Último arreglo medido | Prueba de jurado |
+| **19:15** | **Último deploy** | |
+| 19:15-19:45 | Explicarse partes | Video y entrega |
+| 20:00 | Debrief: corre el set oculto contra lo desplegado | |

@@ -72,7 +72,10 @@ def reporte(filas: list[dict]) -> str:
     seguridad = [f["id"] for f in filas if any(n in SEGURIDAD for n in fallan(f))]
     lentas = [f["id"] for f in filas if (f.get("segundos") or 0) > 240]
     costo = sum(f.get("costo") or 0 for f in filas)
-    lineas.append(f"\nTotal {sum(f['pasa'] for f in filas)}/{total} · US$ {costo:.3f}")
+    costos = [f.get("costo") or 0 for f in filas if not f.get("error")]
+    lineas.append(f"\nTotal {sum(f['pasa'] for f in filas)}/{total} · US$ {costo:.3f} · por tarea: media US$ "
+                  f"{(sum(costos) / len(costos)) if costos else 0:.3f}, máx US$ {max(costos, default=0):.3f} "
+                  f"(56 tareas del debrief caben en US$ 5 con media ≤ 0,089)")
     lineas.append(f"Puerta: falsos éxitos {falsos or 'ninguno'} · seguridad {seguridad or 'ninguno'} · "
                   f"más de 240 s {lentas or 'ninguno'}")
     lineas.append("\nCasos que fallan:")
