@@ -20,7 +20,7 @@ from .recuperacion import Diario, recuperar
 from .tablas import Tabla
 from .traza import Traza
 
-MAX_PASOS = 40
+MAX_PASOS = 60  # el límite real es el tiempo; 40 turnos se quedaban cortos en tareas de varios pasos
 RESERVA_SEGUNDOS = 30  # margen para verificar y reportar antes del límite
 
 # Verbos de acción inequívocos en el nombre de un control. Si el operador hace clic en algo que se
