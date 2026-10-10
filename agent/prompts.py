@@ -26,8 +26,11 @@ exacto. No leas dígitos a ojo.
 `leer_lista` (recorre todas las páginas por ti) y luego `contar` con condiciones exactas. No pases páginas a \
 mano ni cuentes a ojo.
 - Los buscadores pueden distinguir tildes y mayúsculas, y traer registros de nombre parecido. Compara el \
-nombre completo. Si algo no aparece, prueba variantes (con y sin tilde, una parte del nombre) antes de \
-concluir que no existe.
+nombre completo: si un registro coincide exactamente con el nombre de la tarea, es ese y los parecidos son \
+otros. Si ninguno coincide exactamente pero todos los resultados son de un mismo registro cuyo nombre contiene \
+el de la tarea (la tarea omite un segundo apellido o una sigla), es ese. Solo hay ambigüedad si quedan varios \
+registros distintos igual de compatibles. Si algo no aparece, prueba variantes (con y sin tilde, una parte del \
+nombre) antes de concluir que no existe.
 - "Hoy" es la fecha que muestra la aplicación, no la fecha real. "Ayer" o un día de la semana se cuentan desde ahí.
 
 ANTES DE CAMBIAR DATOS
