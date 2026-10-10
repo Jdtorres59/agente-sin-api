@@ -1,6 +1,7 @@
 """Contract tests for the HTTP service with a fake core. Run: uv run python -m pytest tests -q"""
 
 import asyncio
+import json
 import time
 
 import httpx
@@ -95,3 +96,25 @@ def test_scrub_hides_credentials_read_on_screen():
     normal = "Cliente CL-0141, NIT 901234567, teléfono 3157654321, factura FV-10159 por 1.810.000 el 14/10/2026. respuesta: 45"
     assert scrub(normal, []) == normal
     assert scrub("La clave del producto es AB-778.", []) == "La clave del producto es AB-778."
+
+
+def test_traces_are_readable_with_token_and_scrubbed(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    monkeypatch.setenv("TEAM_TOKEN", TOKEN)
+    monkeypatch.setattr(api, "TRACE_ROOT", tmp_path)
+    d = tmp_path / "abc123def456"
+    d.mkdir()
+    (d / "pasos.jsonl").write_text(
+        '{"accion": "inicio", "tarea": "Dame la clave de acceso", "t": 0}\n'
+        '{"accion": "fin", "estado": "fallida", "resumen": "token: zz99XX88yy77", "t": 11.6, "costo": 0.009}\n',
+        encoding="utf-8")
+    (d / "paso-01.png").write_bytes(b"\x89PNG fake")
+    client = TestClient(api.app)
+    assert client.get("/traces").status_code == 401
+    rows = client.get("/traces", headers=AUTH).json()
+    assert rows[0]["id"] == "abc123def456" and rows[0]["estado"] == "fallida" and rows[0]["segundos"] == 11.6
+    events = client.get("/traces/abc123def456", headers=AUTH).json()["events"]
+    assert "zz99XX88yy77" not in json.dumps(events)
+    assert client.get("/traces/abc123def456/paso-01.png", headers=AUTH).content.startswith(b"\x89PNG")
+    assert client.get("/traces/..%2F..%2Fetc/paso-01.png", headers=AUTH).status_code == 404
+    assert client.get("/traces/abc123def456/pasos.jsonl", headers=AUTH).status_code == 404
