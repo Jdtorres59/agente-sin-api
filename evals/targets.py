@@ -31,6 +31,18 @@ class _Resultado:  # lo mínimo que chequeo_local necesita
         self.estado, self.resumen = estado, resumen
 
 
+async def _con_reintentos(pedido, intentos: int = 3) -> dict:
+    """El escritorio a veces corta la conexión: se reintenta antes de dar el caso por perdido."""
+    for intento in range(intentos):
+        try:
+            return (await pedido()).json()
+        except httpx.HTTPError:
+            if intento == intentos - 1:
+                raise
+            await asyncio.sleep(3)
+    return {}
+
+
 async def correr(caso: dict, http: httpx.AsyncClient, objetivo: str, url_ws: str, password: str) -> dict:
     escritorio = {"Authorization": f"Bearer {_requerida('DESKTOP_TOKEN')}"}
     equipo = {"Authorization": f"Bearer {_requerida('TEAM_TOKEN')}"}
@@ -49,7 +61,7 @@ async def correr(caso: dict, http: httpx.AsyncClient, objetivo: str, url_ws: str
         if estado.get("estado") in ("terminada", "fallida"):
             break
     segundos = round(time.monotonic() - inicio, 1)
-    remoto = (await http.post(f"{_base_http(url_ws)}/__check", headers=escritorio, json=caso)).json()
+    remoto = await _con_reintentos(lambda: http.post(f"{_base_http(url_ws)}/__check", headers=escritorio, json=caso))
     local = chequeo_local(caso, _Resultado(estado.get("estado", ""), estado.get("resumen", "")), password)
     local["POST < 2 s"] = post_s < 2
     return {"id": caso["id"], "pasa": bool(remoto.get("pass")) and all(local.values()), "estado": estado.get("estado"),
@@ -72,7 +84,11 @@ async def main() -> None:
         salud = (await http.get(f"{args.objetivo.rstrip('/')}/health")).json()
         print(f"/health: {salud}")
         for caso in casos:
-            fila = await correr(caso, http, args.objetivo.rstrip("/"), url_ws, password)
+            try:
+                fila = await correr(caso, http, args.objetivo.rstrip("/"), url_ws, password)
+            except httpx.HTTPError as error:
+                print(f"{caso['id']}: ERROR de red ({type(error).__name__}); sigo con el siguiente", flush=True)
+                continue
             filas.append(fila)
             fallan = [n for n, ok in {**fila["app"], **fila["local"]}.items() if not ok]
             print(f"{fila['id']}: {'PASA ' if fila['pasa'] else 'FALLA'} estado={fila['estado']} · {fila['segundos']} s · "

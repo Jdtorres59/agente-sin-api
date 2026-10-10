@@ -1,13 +1,13 @@
 """Canario: detecta si la app cambió (el incidente de las 15:30) comparando píxeles, sin modelo.
 
-Cada ronda resetea NUESTRO escritorio de práctica, toma la pantalla inicial y la compara con la
-base guardada. Tras un reset la pantalla inicial es idéntica al píxel (el cliente RFB pide el
+Cada ronda resetea NUESTRO escritorio de práctica, toma la pantalla inicial y cinco pantallas a
+las que llega con clics fijos (sondas), y compara cada una con su base. Tras un reset la pantalla inicial es idéntica al píxel (el cliente RFB pide el
 puntero aparte, así que la flecha no sale en la captura), de modo que cualquier región que cambie es
 un cambio de la app: un menú renombrado mueve ~230 píxeles. Cuando lo hay: alerta ruidosa (campana, banner y
 notificación de macOS), imágenes con las regiones marcadas y una línea con hora en log.jsonl.
 
 Uso:
-  uv run python -m evals.canary --una-vez          # una ronda (la primera guarda la base)
+  uv run python -m evals.canary --una-vez          # una ronda (la primera guarda las bases), ~1 min
   uv run python -m evals.canary --cada 20          # una ronda cada 20 minutos
   uv run python -m evals.canary --nueva-base       # aceptar la pantalla actual como base
   uv run python -m evals.canary --sin-reset        # no resetea: compara solo las barras de arriba
@@ -75,7 +75,20 @@ def alertar(texto: str) -> None:
                        check=False, capture_output=True)
 
 
-async def capturar(url_ws: str, password: str, resetear: bool) -> Image.Image:
+# Sondas: desde la pantalla inicial, clics fijos hasta pantallas que usan las tareas. Son
+# coordenadas de la app de práctica y viven solo aquí, nunca en agent/. Si el incidente mueve un
+# menú, la sonda llega a otra pantalla y eso también se ve como cambio.
+SONDAS = {
+    "inicio": [],
+    "menu_comercial": [(122, 48)],
+    "clientes": [(122, 48), (120, 76), (326, 76)],
+    "nuevo_cliente": [(122, 48), (120, 76), (326, 76), (70, 185)],
+    "facturas": [(213, 48), (208, 76)],
+    "pedidos": [(122, 48), (113, 103), (325, 103)],
+}
+
+
+async def capturar(url_ws: str, password: str, resetear: bool, clics: list) -> Image.Image:
     if resetear:
         async with httpx.AsyncClient(timeout=60) as http:
             token = {"Authorization": f"Bearer {_requerida('DESKTOP_TOKEN')}"}
@@ -85,6 +98,10 @@ async def capturar(url_ws: str, password: str, resetear: bool) -> Image.Image:
     try:
         await driver.connect(url_ws, password)
         await driver.settle()
+        for x, y in clics:
+            await driver.click(x, y)
+            await asyncio.sleep(0.5)
+            await driver.settle()
         return await driver.screenshot()
     finally:
         await driver.close()
@@ -93,20 +110,24 @@ async def capturar(url_ws: str, password: str, resetear: bool) -> Image.Image:
 async def ronda(url_ws: str, password: str, args) -> dict:
     hora = time.strftime("%H:%M:%S")
     sello = time.strftime("%H%M%S")
-    actual = await capturar(url_ws, password, resetear=not args.sin_reset)
-    base_png = CARPETA / "base.png"
-    if args.nueva_base or not base_png.exists():
-        actual.save(base_png)
-        registro = {"hora": hora, "evento": "base_guardada"}
-    else:
+    sondas = {"inicio": []} if args.sin_reset or args.solo_inicio else SONDAS
+    pantallas, cambios = {}, []
+    for nombre, clics in sondas.items():
+        actual = await capturar(url_ws, password, resetear=not args.sin_reset, clics=clics)
+        base_png = CARPETA / f"base-{nombre}.png"
+        if args.nueva_base or not base_png.exists():
+            actual.save(base_png)
+            pantallas[nombre] = "base guardada"
+            continue
         resultado = comparar(Image.open(base_png), actual, solo_banda=args.sin_reset)
-        registro = {"hora": hora, "evento": "cambio" if resultado["cambio"] else "igual",
-                    **{k: v for k, v in resultado.items() if k != "regiones"}, "celdas": len(resultado["regiones"])}
+        pantallas[nombre] = f"{resultado['px']} px" + (f" en {resultado['caja']}" if resultado["cambio"] else "")
         if resultado["cambio"]:
-            actual.save(CARPETA / f"{sello}-actual.png")
-            marcar(actual, resultado["regiones"]).save(CARPETA / f"{sello}-cambios.png")
-            alertar(f"{hora}: cambió el {resultado['fraccion']:.2%} de la pantalla inicial, región {resultado['caja']}. "
-                    f"Ver runs/canary/{sello}-cambios.png")
+            actual.save(CARPETA / f"{sello}-{nombre}-actual.png")
+            marcar(actual, resultado["regiones"]).save(CARPETA / f"{sello}-{nombre}-cambios.png")
+            cambios.append(f"{nombre} ({resultado['fraccion']:.2%}, región {resultado['caja']})")
+    registro = {"hora": hora, "evento": "cambio" if cambios else "igual", "pantallas": pantallas}
+    if cambios:
+        alertar(f"{hora}: la app cambió en {', '.join(cambios)}. Ver runs/canary/{sello}-*-cambios.png")
     with (CARPETA / "log.jsonl").open("a", encoding="utf-8") as log:
         log.write(json.dumps(registro, ensure_ascii=False) + "\n")
     print(json.dumps(registro, ensure_ascii=False), flush=True)
@@ -119,6 +140,7 @@ async def main() -> None:
     parser.add_argument("--una-vez", action="store_true")
     parser.add_argument("--nueva-base", action="store_true")
     parser.add_argument("--sin-reset", action="store_true")
+    parser.add_argument("--solo-inicio", action="store_true", help="sin sondas: solo la pantalla inicial")
     args = parser.parse_args()
     load_dotenv(RAIZ / ".env")
     url_ws, password = _requerida("DESKTOP_URL"), _requerida("DESKTOP_PASSWORD")
