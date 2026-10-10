@@ -32,7 +32,7 @@ from agent.driver import DriverRFB
 from evals.run import RAIZ, _base_http, _requerida
 
 CARPETA = RAIZ / "runs" / "canary"
-PIXEL = 40           # diferencia por canal que cuenta como píxel cambiado
+PIXEL = 12           # diferencia por canal que cuenta como píxel cambiado (con 40 no vio el cambio de color del tema 4.2)
 CELDA = 16           # las regiones se reportan en celdas de 16x16 px
 MIN_PX_CELDA = 4     # píxeles cambiados para marcar una celda
 RUIDO_PX = 50        # menos que esto es ruido de dibujo, no un cambio de la app
@@ -78,13 +78,16 @@ def alertar(texto: str) -> None:
 # Sondas: desde la pantalla inicial, clics fijos hasta pantallas que usan las tareas. Son
 # coordenadas de la app de práctica y viven solo aquí, nunca en agent/. Si el incidente mueve un
 # menú, la sonda llega a otra pantalla y eso también se ve como cambio.
+# Desde la versión 4.2 (incidente) la app abre con el aviso «Novedades de la versión 4.2»: el
+# primer clic lo cierra («Entendido»). En la 3.9 ese punto es fondo vacío y el clic no hace nada.
+AVISO = (840, 482)
 SONDAS = {
     "inicio": [],
-    "menu_comercial": [(122, 48)],
-    "clientes": [(122, 48), (120, 76), (326, 76)],
-    "nuevo_cliente": [(122, 48), (120, 76), (326, 76), (70, 185)],
-    "facturas": [(213, 48), (208, 76)],
-    "pedidos": [(122, 48), (113, 103), (325, 103)],
+    "menu_comercial": [AVISO, (122, 48)],
+    "clientes": [AVISO, (122, 48), (120, 76), (326, 76)],
+    "nuevo_cliente": [AVISO, (122, 48), (120, 76), (326, 76), (70, 185)],
+    "facturas": [AVISO, (213, 48), (208, 76)],
+    "pedidos": [AVISO, (122, 48), (113, 103), (325, 103)],
 }
 
 

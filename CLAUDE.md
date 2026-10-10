@@ -5,7 +5,7 @@ Este repo es el entregable del **Reto 1 de Frontier Bogotá 2026**: un agente qu
 Equipo: **Juanda** (`Jdtorres59`) y **Juanes** (`Juanes-314`). Cada uno trabaja con su propio Claude
 Code sobre este repo. Lee este archivo completo antes de tocar código.
 
-El plan detallado con horario está en [docs/PLAN.md](docs/PLAN.md). El diseño, en
+**Desde las 16:15 manda [docs/PLAN-CORRIDA2.md](docs/PLAN-CORRIDA2.md)**: diagnóstico de la corrida 1 del set oculto y tareas para la corrida 2, con dueño y medida. El plan original está en [docs/PLAN.md](docs/PLAN.md). El diseño, en
 [docs/DISENO.md](docs/DISENO.md).
 
 ## Qué se evalúa (resumen de la rúbrica)
