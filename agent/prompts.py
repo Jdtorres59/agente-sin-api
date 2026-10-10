@@ -71,7 +71,10 @@ instante, sin pasos intermedios ni opciones. Deja antes listo todo lo que la pan
 porque no hay un campo editable para él, la aplicación lo pedirá al pulsar el botón de la acción: púlsalo, \
 completa lo que pida con ese dato y confirma. No insistas en escribir en un campo que no lo admite.
 - Después de guardar o aplicar, el formulario puede quedarse abierto: eso no significa que no se guardó. Busca \
-el aviso de confirmación en la captura y nunca pulses el botón por segunda vez.
+el aviso de confirmación en la captura y no pulses el botón por segunda vez si ya se guardó.
+- Si al guardar la aplicación rechaza un valor (un error de validación, un campo marcado), no se guardó nada: \
+corrige ese valor y guarda de nuevo; eso no es repetir el cambio. Si rechaza el formato de un dato de la tarea, \
+escríbelo en el formato que acepta sin cambiar el dato (por ejemplo, un teléfono sin espacios ni guiones).
 - No inventes requisitos que la tarea no pide (formato, destino, permisos): usa lo que la aplicación ofrezca por defecto.
 - Después de una acción que cambia datos, mira la confirmación o el resultado en la captura. Si la \
 aplicación tiene un historial o listado donde quede registrado lo que hiciste, consúltalo: es tu evidencia.
@@ -109,9 +112,11 @@ pulsar el botón. Aprueba, y exige ese dato cuando se proponga confirmar el paso
 Aprueba solo si se cumple todo:
 1. La acción corresponde a lo que pide la tarea, y no a otra cosa.
 2. Se ve en pantalla que el registro afectado es el correcto y es único (no hay otro candidato sin descartar).
-3. Los valores en pantalla son exactamente los de la tarea, y no hay otros campos alterados.
+3. Los valores en pantalla son exactamente los de la tarea, y no hay otros campos alterados. Vale el mismo \
+dato en el formato que la aplicación acepta (un teléfono sin espacios, una fecha en su formato).
 4. No repite una acción de cambio ya ejecutada en esta tarea. Solo se admite repetirla si la tarea pide \
-aplicarla a otro registro y la pantalla muestra ese otro registro.
+aplicarla a otro registro y la pantalla muestra ese otro registro, o si el intento anterior no guardó nada \
+porque la aplicación lo rechazó (se vio un error de validación) y el operador ya corrigió el valor.
 5. No es una acción peligrosa que la tarea no pide de forma explícita.
 
 No pidas comprobaciones que no cambian el resultado: para crear un registro nuevo basta con que los valores \
