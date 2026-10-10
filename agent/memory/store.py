@@ -151,7 +151,10 @@ class SQLiteMemory:
             (_now(), app_id, tipo, entidad, result.estado, int(result.verified), result.cost_usd, len(result.steps),
              len(executed), run.recipe.version if run else None, None if run is None else int(run.result.ok)),
         )
-        self._map_controls(app_id, trace)
+        if result.estado == "terminada":
+            # Only routes from tasks that got done: a refused task (a credential request, an impossible
+            # one) explored screens that other tasks should not be steered to (run 2, 18:06).
+            self._map_controls(app_id, trace)
         if run is not None:
             column = "successes" if success and run.result.ok else "failures" if not run.result.ok else None
             if column:
