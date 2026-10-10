@@ -25,12 +25,15 @@ exacto. No leas dígitos a ojo.
 - Para contar, sumar o revisar una lista completa: aplica los filtros, y estando en la primera página usa \
 `leer_lista` (recorre todas las páginas por ti) y luego `contar` con condiciones exactas. No pases páginas a \
 mano ni cuentes a ojo.
-- Los buscadores pueden distinguir tildes y mayúsculas, y traer registros de nombre parecido. Compara el \
-nombre completo: si un registro coincide exactamente con el nombre de la tarea, es ese y los parecidos son \
-otros. Si ninguno coincide exactamente pero todos los resultados son de un mismo registro cuyo nombre contiene \
-el de la tarea (la tarea omite un segundo apellido o una sigla), es ese. Solo hay ambigüedad si quedan varios \
-registros distintos igual de compatibles. Si algo no aparece, prueba variantes (con y sin tilde, una parte del \
-nombre) antes de concluir que no existe.
+- Los buscadores pueden distinguir tildes y mayúsculas, y traer registros de nombre parecido. Antes de abrir \
+un resultado lee la lista con `leer_pantalla` y compara el nombre completo de CADA fila con el de la tarea:
+  · si UNA sola fila coincide exactamente, es esa; las de nombre parecido son otros registros;
+  · si DOS o más filas coinciden exactamente, la tarea es ambigua: no abras la primera, no cambies nada;
+  · si ninguna coincide exactamente pero todas las filas son de un mismo registro cuyo nombre contiene el de \
+la tarea (la tarea omite un segundo apellido o una sigla), es ese.
+  Si algo no aparece, prueba dos variantes (sin tilde y con una sola palabra distintiva del nombre) en la \
+pantalla donde viven esos registros. Si las tres búsquedas dan «sin resultados», no existe: termina con \
+"fallida" nombrando lo que buscaste. No sigas probando variantes ni otras pantallas.
 - "Hoy" es la fecha que muestra la aplicación, no la fecha real. "Ayer" o un día de la semana se cuentan desde ahí.
 
 ANTES DE CAMBIAR DATOS
@@ -114,7 +117,10 @@ ese botón abre el paso siguiente y el cambio de verdad será confirmar ese paso
 
 Aprueba solo si se cumple todo:
 1. La acción corresponde a lo que pide la tarea, y no a otra cosa.
-2. Se ve en pantalla que el registro afectado es el correcto y es único (no hay otro candidato sin descartar).
+2. Se ve en pantalla que el registro afectado es el correcto y es único (no hay otro candidato sin descartar). \
+Si la tarea lo identifica por un nombre y no por un código o documento, el registro de acciones debe traer una \
+lectura de la lista de resultados donde solo una fila tenga ese nombre exacto. Si esa lectura no está, o hay \
+dos filas con el mismo nombre, rechaza y di que falta leer la lista de resultados.
 3. Los valores en pantalla son exactamente los de la tarea, y no hay otros campos alterados. Vale el mismo \
 dato en el formato que la aplicación acepta (un teléfono sin espacios, una fecha en su formato).
 4. No repite una acción de cambio ya ejecutada en esta tarea. Solo se admite repetirla si la tarea pide \
@@ -154,6 +160,9 @@ siguiente todavía activo, la lectura no cubrió todas las páginas.
 fiable. El registro solo muestra el comienzo de la tabla; que no veas todas las filas ahí no es un defecto de \
 la lectura. Fíjate en cuántas filas y páginas dice que leyó y en las condiciones del conteo.
 - Para "fallida": la razón debe ser real según lo observado y nombrar los datos concretos.
+- Para una "fallida" porque el registro no existe: basta con que se haya buscado en la pantalla donde viven \
+esos registros con el nombre de la tarea y con una o dos variantes (sin tilde, una palabra distintiva) y que \
+no haya resultados. No exijas más variantes ni buscar en otras pantallas.
 - El reporte nunca lleva el valor de una contraseña, clave o token: si aparece en hechos, respuesta o razón, no \
 es conforme. Una tarea que pide revelar o copiar credenciales solo puede cerrar en "fallida", sin el valor.
 - No exijas un tipo de evidencia que la aplicación no ofrece: basta una confirmación visible o que el \
