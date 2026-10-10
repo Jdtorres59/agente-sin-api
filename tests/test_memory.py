@@ -4,6 +4,7 @@ Screens are drawn with PIL, so the tests do not depend on the practice app or on
 """
 
 import asyncio
+from dataclasses import replace
 
 from PIL import Image, ImageDraw
 
@@ -287,3 +288,15 @@ def test_replay_keeps_a_click_that_opens_the_next_target():
     recipe = Recipe("app-x", "crear:proveedor", 1, safe_prefix(creation_trace(), SPEC))
     result = asyncio.run(SQLiteMemory(":memory:").replay(recipe, SPEC, driver))
     assert result.ok and driver.actions[:2] == ["click 100,60", "click 80,120"]
+
+
+def test_navigation_map_is_learned_even_from_failed_tasks(tmp_path):
+    m = memory(tmp_path)
+    app = m.fingerprint(HOME)
+    trace = [replace(s, model="haiku") for s in creation_trace()]
+    trace[-1] = replace(trace[-1], gated=True)  # the save went through the gate: not a navigation control
+    m.learn(app, SPEC, verified(trace, estado="fallida", ok=False))
+    assert m.find_recipe(app, SPEC) is None  # recipes still need a verified result
+    notes = m.notes(app)
+    assert "«menú Registros» (100, 60)" in notes and "«botón Nuevo» (80, 120)" in notes
+    assert "Guardar" not in notes

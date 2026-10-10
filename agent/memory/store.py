@@ -8,6 +8,9 @@ verified). Everything else only feeds the statistics. Tables:
              matching gets a new version from the next verified trace; one that fails more than it
              succeeds is no longer offered.
 - fields:    where each TaskSpec field was filled, to give the operator a map in its prompt.
+- controls:  navigation controls that changed the screen, from EVERY task (verified or not). Exploring
+             is knowledge even when the task fails: in the first hidden-set run almost nothing was
+             verified, so recipes learned nothing, but every task found menus and screens.
 - lessons:   short facts learned the hard way: the interface changed at step k, or what the verifier
              demanded before accepting a task of this kind (so the operator does it the first time).
 - episodes:  one row per task: cost, model steps, replayed steps. The learning curve comes from here.
@@ -37,10 +40,14 @@ CREATE TABLE IF NOT EXISTS recipes (app_id TEXT, tipo TEXT, entidad TEXT, versio
 CREATE TABLE IF NOT EXISTS fields (app_id TEXT, entidad TEXT, slot TEXT, x INTEGER, y INTEGER, seen INTEGER, last TEXT,
     PRIMARY KEY (app_id, entidad, slot));
 CREATE TABLE IF NOT EXISTS lessons (id INTEGER PRIMARY KEY, ts TEXT, app_id TEXT, text TEXT, scope TEXT DEFAULT '');
+CREATE TABLE IF NOT EXISTS controls (app_id TEXT, label TEXT, x INTEGER, y INTEGER, seen INTEGER, last TEXT,
+    PRIMARY KEY (app_id, label));
 CREATE TABLE IF NOT EXISTS episodes (id INTEGER PRIMARY KEY, ts TEXT, app_id TEXT, tipo TEXT, entidad TEXT, estado TEXT,
     verified INTEGER, cost REAL, model_steps INTEGER, replayed_steps INTEGER, recipe_version INTEGER, replay_ok INTEGER);
 """
 MAX_NOTE_LINES = 8
+MAX_CONTROLS = 15
+NAVIGATION_PX = 2000  # a click that repainted at least this much opened a menu, a screen or a list
 
 
 @dataclass
@@ -144,6 +151,7 @@ class SQLiteMemory:
             (_now(), app_id, tipo, entidad, result.estado, int(result.verified), result.cost_usd, len(result.steps),
              len(executed), run.recipe.version if run else None, None if run is None else int(run.result.ok)),
         )
+        self._map_controls(app_id, trace)
         if run is not None:
             column = "successes" if success and run.result.ok else "failures" if not run.result.ok else None
             if column:
@@ -187,6 +195,20 @@ class SQLiteMemory:
                 (app_id, entidad, names[slot], action[0].x, action[0].y, _now()),
             )
 
+    def _map_controls(self, app_id: str, trace: list[Step]) -> None:
+        """Clicks that navigated (big repaint, not an action that went through the gate), by label."""
+        for step in trace:
+            label = (step.label or "").strip()
+            if step.kind not in ("click", "double_click") or not label or step.gated or step.model is None:
+                continue
+            if step.screen_changed_px < NAVIGATION_PX or len(label) > 60:
+                continue
+            self.db.execute(
+                "INSERT INTO controls VALUES (?, ?, ?, ?, 1, ?) ON CONFLICT (app_id, label)"
+                " DO UPDATE SET x = excluded.x, y = excluded.y, seen = seen + 1, last = excluded.last",
+                (app_id, label, step.x, step.y, _now()),
+            )
+
     def _lesson(self, app_id: str, text: str, scope: str = "") -> None:
         self.db.execute("INSERT INTO lessons (ts, app_id, text, scope) VALUES (?, ?, ?, ?)", (_now(), app_id, text[:300], scope))
 
@@ -220,9 +242,15 @@ class SQLiteMemory:
         lessons = self.db.execute(
             "SELECT text FROM lessons WHERE app_id = ? AND scope = '' ORDER BY id DESC LIMIT 3", (app_id,)
         ).fetchall()
-        if not lines and not lessons:
+        controls = self.db.execute(
+            "SELECT label, x, y FROM controls WHERE app_id = ? ORDER BY seen DESC, last DESC LIMIT ?", (app_id, MAX_CONTROLS)
+        ).fetchall()
+        if not lines and not lessons and not controls:
             return ""
         text = "MEMORIA DE ESTA APLICACIÓN (de tareas anteriores; confírmalo todo en la captura, las posiciones pueden haber cambiado):\n"
+        if controls:
+            text += "Controles de navegación que ya funcionaron (etiqueta y posición): " + ", ".join(
+                f"«{label}» ({x}, {y})" for label, x, y in controls) + ".\n"
         text += "\n".join(lines)
         if lessons:
             text += "\nLecciones:\n" + "\n".join(f"- {t}" for (t,) in lessons)
