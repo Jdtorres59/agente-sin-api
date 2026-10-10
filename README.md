@@ -62,11 +62,62 @@ Todas las llamadas llevan `Authorization: Bearer <TEAM_TOKEN>`.
 
 ## Arquitectura
 
-Ver [docs/DISENO.md](docs/DISENO.md).
+![Arquitectura](docs/architecture.png)
+
+Principio: **el modelo percibe y decide; el código garantiza.** El agente no tiene DOM ni API: ve
+capturas por VNC y actúa con mouse y teclado.
+
+| Pieza | Archivo | Qué hace | Modelo |
+|---|---|---|---|
+| Servicio | `service/` | Contrato HTTP, una tarea asyncio por pedido, reloj de 270 s, filtro de secretos | Ninguno |
+| Comprensión | `agent/comprension.py` | Convierte la instrucción en un `TaskSpec`: tipo, entidad, referente, valores literales, riesgos | Sonnet 5.5 |
+| Operador | `agent/operador.py` | Observa, decide y actúa paso a paso con herramientas (clic, rellenar, leer lista, contar, terminar) | Haiku 5.5 |
+| Driver | `agent/rfb.py`, `agent/escritorio.py` | Cliente VNC propio: clic sostenido 180 ms (bajo 100 ms la app lo ignora), teclas a 80 ms (tildes), lectura exacta por portapapeles | Ninguno |
+| Compuertas | `agent/operador.py` | Toda acción que puede cambiar datos pasa por revisión; se guarda una sola vez | Sonnet 5.5 |
+| Verificación | `agent/operador.py` | Contexto limpio: relee la app y decide `terminada` o `fallida` | Sonnet 5.5 |
+| Recuperación | `agent/recuperacion.py` | Diario de campos editados, diagnóstico de la falla y restauración del valor anterior exacto | Reglas, y Sonnet solo si son ambiguas |
+| Reporte | `agent/reporte.py` | Plantilla, línea `respuesta:` por código, sin secretos | Ninguno |
+| Memoria | `agent/memory/` | Huella de la app, recetas verificadas con anclas visuales, lecciones del verificador | Ninguno |
+
+Detalle y alternativas descartadas en [docs/DISENO.md](docs/DISENO.md).
+
+### Memoria que aprende
+
+Aprende solo de tareas que la verificación confirmó (y, en desarrollo, que pasaron `__check`).
+
+- **Huella:** miniatura en color de la primera pantalla y de la barra superior. Tras un reset, la
+  pantalla inicial de la misma app es idéntica al píxel; otra página difiere ~25%.
+- **Recetas:** de una traza verificada se guarda solo lo que no cambia datos: navegación y campos que
+  salen del `TaskSpec`. Se corta antes de cualquier clic que pueda guardar y antes de editar un
+  registro existente. Al repetirla, cada clic exige que el recorte de 48×48 px alrededor del punto
+  siga en pantalla (±3 px; dos menús vecinos difieren 9,5% y el umbral es 3%). Si no coincide, se
+  detiene y el operador sigue desde ahí.
+- **Lecciones:** lo que la verificación exigió antes de aceptar una tarea de ese tipo, y los pasos
+  donde una receta dejó de coincidir. Van en el prompt del operador.
+- Está **apagada en producción** (`MEMORY=on` la enciende) hasta que la curva muestre mejora.
 
 ## Evaluación
 
-_Pendiente: tasa de éxito, costo por caso y latencia sobre `evals/cases/`._
+Harness propio: `__reset` → agente → `__check` de la app + chequeos locales (estado, línea
+`respuesta:`, datos clave de la razón, sin secretos). Casos en `evals/cases/` (E1-E5 del enunciado y
+J1, una ciudad que no existe en la lista cerrada).
+
+| Hora | Versión | Resultado | Costo total | Tiempo medio |
+|---|---|---|---|---|
+| 13:04 | línea base | 4/5 | US$0,19 | 85 s |
+| 13:15 | `ca6d5f5` (compuerta por nombre del control) | 5/5 | US$0,115 | 55 s |
+| 13:38 | `46c27c0` (guarda de borde) | 5/5, y E1 3/3 | US$0,115 | 56 s |
+
+Curva de aprendizaje (13:42, `evals/curve.py`, 4 tareas de crear con datos distintos):
+
+| Modo | Pasan | Llamadas (media) | Costo (media) | Tiempo (media) |
+|---|---|---|---|---|
+| Sin memoria | 3/4 | 13,5 | US$0,030 | 72 s |
+| Con memoria (tareas 2-4) | 2/3 | 13,3 | US$0,041 | 94 s |
+
+La primera versión de la memoria **no mejoró**: la receta dejaba una búsqueda escrita sin ejecutar y
+el verificador devolvía la tarea. Además, ~70% del costo es Sonnet (comprensión, revisión y
+verificación), que la memoria no salta a propósito. Ver [FALLAS.md](FALLAS.md).
 
 ## Incidente
 
