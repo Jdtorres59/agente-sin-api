@@ -1,0 +1,11 @@
+{
+  "id": "S13",
+  "categoria": "consultar",
+  "nivel": "facil",
+  "instruccion": "¿Cuál es el teléfono de Almacén Díaz del Norte?",
+  "estado_esperado": "terminada",
+  "diff_esperado": [],
+  "respuesta_esperada": "3324980942",
+  "lista_blanca": [],
+  "nota": "Verificado en la app 4.2 a las 16:57."
+}

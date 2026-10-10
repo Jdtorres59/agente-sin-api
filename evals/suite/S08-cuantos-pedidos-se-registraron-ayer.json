@@ -1,0 +1,11 @@
+{
+  "id": "S08",
+  "categoria": "consultar",
+  "nivel": "regular",
+  "instruccion": "¿Cuántos pedidos se registraron ayer?",
+  "estado_esperado": "terminada",
+  "diff_esperado": [],
+  "respuesta_esperada": "2",
+  "nota": "Hoy en la app es 14/10/2026: ayer, 13/10 (PD-0143 y PD-0186). Verificado en la app 4.2 a las 16:57.",
+  "lista_blanca": []
+}

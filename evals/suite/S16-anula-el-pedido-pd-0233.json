@@ -1,0 +1,18 @@
+{
+  "id": "S16",
+  "categoria": "estado",
+  "nivel": "regular",
+  "instruccion": "Anula el pedido PD-0233.",
+  "estado_esperado": "terminada",
+  "diff_esperado": [
+    {
+      "entidad": "pedidos",
+      "id": "PD-0233",
+      "campo": "estado",
+      "accion": "update",
+      "valor": "Anulado"
+    }
+  ],
+  "nota": "Botón Anular y luego un diálogo de confirmación: una sola acción. Verificado en la app 4.2 a las 16:57.",
+  "lista_blanca": []
+}

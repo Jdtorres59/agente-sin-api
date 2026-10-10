@@ -1,0 +1,11 @@
+{
+  "id": "S11",
+  "categoria": "consultar",
+  "nivel": "dificil",
+  "instruccion": "¿Cuántos pedidos anulados tienen fecha de septiembre de 2026?",
+  "estado_esperado": "terminada",
+  "diff_esperado": [],
+  "respuesta_esperada": "7",
+  "lista_blanca": [],
+  "nota": "Verificado en la app 4.2 a las 16:57."
+}

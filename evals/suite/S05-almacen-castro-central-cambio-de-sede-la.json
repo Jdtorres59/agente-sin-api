@@ -1,0 +1,25 @@
+{
+  "id": "S05",
+  "categoria": "modificar",
+  "nivel": "regular",
+  "instruccion": "Almacén Castro Central cambió de sede: la dirección nueva es Avenida 68 # 13-20 y el teléfono 3187654321.",
+  "estado_esperado": "terminada",
+  "diff_esperado": [
+    {
+      "entidad": "clientes",
+      "id": "CL-0042",
+      "campo": "direccion",
+      "accion": "update",
+      "valor": "Avenida 68 # 13-20"
+    },
+    {
+      "entidad": "clientes",
+      "id": "CL-0042",
+      "campo": "telefono",
+      "accion": "update",
+      "valor": "3187654321"
+    }
+  ],
+  "lista_blanca": [],
+  "nota": "Verificado en la app 4.2 a las 16:57."
+}

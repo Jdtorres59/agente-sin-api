@@ -1,0 +1,11 @@
+{
+  "id": "S12",
+  "categoria": "consultar",
+  "nivel": "regular",
+  "instruccion": "¿En qué ciudad está el cliente Almacén Díaz y cuál es su NIT?",
+  "estado_esperado": "terminada",
+  "diff_esperado": [],
+  "respuesta_esperada": "Barranquilla; 870317958",
+  "nota": "Dos datos en orden. La búsqueda también trae «Almacén Díaz del Norte». Verificado en la app 4.2 a las 16:57.",
+  "lista_blanca": []
+}

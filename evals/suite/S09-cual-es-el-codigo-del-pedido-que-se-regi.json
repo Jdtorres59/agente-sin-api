@@ -1,0 +1,11 @@
+{
+  "id": "S09",
+  "categoria": "consultar",
+  "nivel": "regular",
+  "instruccion": "¿Cuál es el código del pedido que se registró el sábado?",
+  "estado_esperado": "terminada",
+  "diff_esperado": [],
+  "respuesta_esperada": "PD-0253",
+  "nota": "Hoy es miércoles 14/10/2026: el sábado es 10/10. Verificado en la app 4.2 a las 16:57.",
+  "lista_blanca": []
+}

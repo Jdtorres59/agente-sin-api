@@ -1,0 +1,39 @@
+{
+  "id": "S03",
+  "categoria": "crear",
+  "nivel": "regular",
+  "instruccion": "Da de alta al cliente Ferretería Ñandú, NIT 900888999, teléfono 3162223344, ciudad Bogotá.",
+  "estado_esperado": "terminada",
+  "diff_esperado": [
+    {
+      "entidad": "clientes",
+      "id": "nuevo",
+      "campo": "nombre",
+      "accion": "create",
+      "valor": "Ferretería Ñandú"
+    },
+    {
+      "entidad": "clientes",
+      "id": "nuevo",
+      "campo": "nit",
+      "accion": "create",
+      "valor": "900888999"
+    },
+    {
+      "entidad": "clientes",
+      "id": "nuevo",
+      "campo": "telefono",
+      "accion": "create",
+      "valor": "3162223344"
+    },
+    {
+      "entidad": "clientes",
+      "id": "nuevo",
+      "campo": "ciudad",
+      "accion": "create",
+      "valor": "Bogotá"
+    }
+  ],
+  "nota": "Escribir la Ñ por VNC. Verificado en la app 4.2 a las 16:57.",
+  "lista_blanca": []
+}

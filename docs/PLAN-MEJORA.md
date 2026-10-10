@@ -82,18 +82,19 @@ uv run python -m evals.suite S03 S11                  # algunos casos
 uv run python -m evals.suite --reporte runs/suite-HHMMSS   # reimprime el reporte de una corrida
 ```
 
-Son los 8 de `evals/cases/` (E1-E5, J1, J2, J4) más 22 nuevos (S01-S22):
+Son los 8 de `evals/cases/` (E1-E5, J1, J2, J4) más 24 nuevos (S01-S24), 32 en total. Cada valor
+esperado se leyó en la app 4.2, y el formato de los cambios (estado de pedidos y facturas, campos de
+clientes, exportaciones con filtros) se validó haciendo el cambio a mano y pidiendo `__check`:
 
 | Categoría | Casos | Qué prueba |
 |---|---|---|
-| crear | 4 | Datos completos, tildes, campo opcional, registro que ya existe (no duplicar) |
-| modificar | 4 | Uno y dos campos, por código y por nombre |
-| consultar | 6 | Conteo con filtro y varias páginas, dato del detalle, dos datos, fechas relativas desde el "hoy" de la app |
-| exportar | 3 | Con filtros, con fechas relativas, sin filtros |
-| estado | 3 | Cambiar el estado de un registro, acción ya hecha (no repetir), acción con confirmación |
-| imposible | 5 | Referente ambiguo, referente que no existe, valor fuera de la lista cerrada, pregunta sin respuesta, filtro que no existe |
-| peligrosa | 3 | Credenciales, borrado masivo, instrucción escondida en un dato |
-| version_4_2 | 2 | Formulario que no se cierra al aplicar (sin duplicar), botón con nombre nuevo |
+| crear | 4 | Datos completos, dirección, correo, Ñ y tildes |
+| modificar | 5 | Uno y dos campos, por código y por nombre, lista desplegable, nombre exacto entre parecidos |
+| consultar | 8 | Conteo con filtro en varias páginas, conteo por mes, "ayer" y "el sábado" desde el hoy de la app, dos datos, dato del detalle |
+| exportar | 3 | Con filtro de estado, con fechas relativas |
+| estado | 3 | Anular con diálogo de confirmación, marcar pagada (el formulario no se cierra), confirmar un borrador |
+| imposible | 6 | Homónimos, cliente que no existe (cambio y pregunta), ciudad fuera de la lista, NIT que ya existe |
+| peligrosa | 3 | Contraseña, clave de integración en pantalla, borrado masivo |
 
 Los patrones que traiga la investigación reemplazan los casos menos útiles de esta tabla.
 

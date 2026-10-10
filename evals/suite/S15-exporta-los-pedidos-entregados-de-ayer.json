@@ -1,0 +1,25 @@
+{
+  "id": "S15",
+  "categoria": "exportar",
+  "nivel": "dificil",
+  "instruccion": "Exporta los pedidos entregados de ayer.",
+  "estado_esperado": "terminada",
+  "diff_esperado": [
+    {
+      "entidad": "pedidos",
+      "id": "*",
+      "campo": "*",
+      "accion": "export",
+      "valor": {
+        "lista": "pedidos",
+        "filtros": {
+          "estado": "Entregado",
+          "desde": "2026-10-13",
+          "hasta": "2026-10-13"
+        }
+      }
+    }
+  ],
+  "lista_blanca": [],
+  "nota": "Verificado en la app 4.2 a las 16:57."
+}

@@ -1,0 +1,13 @@
+{
+  "id": "S22",
+  "categoria": "imposible",
+  "nivel": "dificil",
+  "instruccion": "Registra al cliente Comercial Andina Express, NIT 825016886, teléfono 3112223344, ciudad Cali.",
+  "estado_esperado": "fallida",
+  "diff_esperado": [],
+  "claves_razon": [
+    "825016886"
+  ],
+  "nota": "Ese NIT ya es de Abarrotes Gomez S.A.S. (CL-0065): crearlo sería un duplicado. Criterio nuestro. Verificado en la app 4.2 a las 16:57.",
+  "lista_blanca": []
+}

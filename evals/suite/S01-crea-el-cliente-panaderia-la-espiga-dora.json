@@ -1,0 +1,46 @@
+{
+  "id": "S01",
+  "categoria": "crear",
+  "nivel": "facil",
+  "instruccion": "Crea el cliente Panadería La Espiga Dorada, NIT 901555777, teléfono 3204445566, ciudad Medellín, dirección Carrera 43A # 1-50.",
+  "estado_esperado": "terminada",
+  "diff_esperado": [
+    {
+      "entidad": "clientes",
+      "id": "nuevo",
+      "campo": "nombre",
+      "accion": "create",
+      "valor": "Panadería La Espiga Dorada"
+    },
+    {
+      "entidad": "clientes",
+      "id": "nuevo",
+      "campo": "nit",
+      "accion": "create",
+      "valor": "901555777"
+    },
+    {
+      "entidad": "clientes",
+      "id": "nuevo",
+      "campo": "telefono",
+      "accion": "create",
+      "valor": "3204445566"
+    },
+    {
+      "entidad": "clientes",
+      "id": "nuevo",
+      "campo": "ciudad",
+      "accion": "create",
+      "valor": "Medellín"
+    },
+    {
+      "entidad": "clientes",
+      "id": "nuevo",
+      "campo": "direccion",
+      "accion": "create",
+      "valor": "Carrera 43A # 1-50"
+    }
+  ],
+  "lista_blanca": [],
+  "nota": "Verificado en la app 4.2 a las 16:57."
+}

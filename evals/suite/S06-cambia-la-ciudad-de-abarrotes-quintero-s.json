@@ -1,0 +1,18 @@
+{
+  "id": "S06",
+  "categoria": "modificar",
+  "nivel": "regular",
+  "instruccion": "Cambia la ciudad de Abarrotes Quintero S.A.S. a Cali.",
+  "estado_esperado": "terminada",
+  "diff_esperado": [
+    {
+      "entidad": "clientes",
+      "id": "CL-0080",
+      "campo": "ciudad",
+      "accion": "update",
+      "valor": "Cali"
+    }
+  ],
+  "nota": "Lista desplegable. Verificado en la app 4.2 a las 16:57.",
+  "lista_blanca": []
+}

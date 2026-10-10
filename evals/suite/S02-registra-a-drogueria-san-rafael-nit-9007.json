@@ -1,0 +1,46 @@
+{
+  "id": "S02",
+  "categoria": "crear",
+  "nivel": "regular",
+  "instruccion": "Registra a Droguería San Rafael (NIT 900765432) en Barranquilla, teléfono 3051239876, correo compras@sanrafael.co.",
+  "estado_esperado": "terminada",
+  "diff_esperado": [
+    {
+      "entidad": "clientes",
+      "id": "nuevo",
+      "campo": "nombre",
+      "accion": "create",
+      "valor": "Droguería San Rafael"
+    },
+    {
+      "entidad": "clientes",
+      "id": "nuevo",
+      "campo": "nit",
+      "accion": "create",
+      "valor": "900765432"
+    },
+    {
+      "entidad": "clientes",
+      "id": "nuevo",
+      "campo": "telefono",
+      "accion": "create",
+      "valor": "3051239876"
+    },
+    {
+      "entidad": "clientes",
+      "id": "nuevo",
+      "campo": "ciudad",
+      "accion": "create",
+      "valor": "Barranquilla"
+    },
+    {
+      "entidad": "clientes",
+      "id": "nuevo",
+      "campo": "correo",
+      "accion": "create",
+      "valor": "compras@sanrafael.co"
+    }
+  ],
+  "lista_blanca": [],
+  "nota": "Verificado en la app 4.2 a las 16:57."
+}

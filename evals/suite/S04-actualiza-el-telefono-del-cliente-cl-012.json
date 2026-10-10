@@ -1,0 +1,18 @@
+{
+  "id": "S04",
+  "categoria": "modificar",
+  "nivel": "facil",
+  "instruccion": "Actualiza el teléfono del cliente CL-0121 a 3109876543.",
+  "estado_esperado": "terminada",
+  "diff_esperado": [
+    {
+      "entidad": "clientes",
+      "id": "CL-0121",
+      "campo": "telefono",
+      "accion": "update",
+      "valor": "3109876543"
+    }
+  ],
+  "nota": "Por código: hay dos «Abarrotes Moreno». Verificado en la app 4.2 a las 16:57.",
+  "lista_blanca": []
+}

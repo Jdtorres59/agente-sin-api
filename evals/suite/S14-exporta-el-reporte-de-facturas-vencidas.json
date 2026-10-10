@@ -1,0 +1,23 @@
+{
+  "id": "S14",
+  "categoria": "exportar",
+  "nivel": "regular",
+  "instruccion": "Exporta el reporte de facturas vencidas.",
+  "estado_esperado": "terminada",
+  "diff_esperado": [
+    {
+      "entidad": "facturas",
+      "id": "*",
+      "campo": "*",
+      "accion": "export",
+      "valor": {
+        "lista": "facturas",
+        "filtros": {
+          "estado": "Vencida"
+        }
+      }
+    }
+  ],
+  "lista_blanca": [],
+  "nota": "Verificado en la app 4.2 a las 16:57."
+}
