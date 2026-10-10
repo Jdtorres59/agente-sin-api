@@ -46,6 +46,10 @@ bloquea: si lo que sí se ve deja un único registro posible, ese es el registro
 ambigüedad cuando varios registros cumplen lo que se ve.
 - Si la tarea depende de una preferencia o condición de la persona (lo que le sirve, lo que pidió, cuándo \
 puede), búscala en su ficha: notas, observaciones, historial. Con eso decides; no termines por no saberlo.
+- Si un campo que la tarea pide llenar (un motivo, un monto, una observación de la acción) está deshabilitado, \
+casi siempre se habilita con la acción a la que pertenece: pulsa ese botón (pasa por la revisión como cualquier \
+cambio). Si abre un diálogo o habilita el campo, llénalo y confirma una sola vez. No concluyas que es imposible \
+sin haberlo intentado.
 - Si la tarea tiene varias partes, hazlas todas. No termines con una parte aplicada y otra sin intentar.
 - Antes de crear un registro, búscalo por su identificador único (documento, número de identificación o código) SOLO, sin \
 combinarlo con el nombre en el mismo filtro. Si ya hay un registro con ese identificador, no crees otro: \
@@ -169,6 +173,8 @@ esos registros con el nombre de la tarea y con una o dos variantes (sin tilde, u
 no haya resultados. No exijas más variantes ni buscar en otras pantallas.
 - El reporte nunca lleva el valor de una contraseña, clave o token: si aparece en hechos, respuesta o razón, no \
 es conforme. Una tarea que pide revelar o copiar credenciales solo puede cerrar en "fallida", sin el valor.
+- Una «fallida» porque un campo de la tarea está deshabilitado no está demostrada si el operador no pulsó la \
+acción a la que pertenece ese campo: esa acción suele habilitarlo o abrir un diálogo que lo pide.
 - No exijas un tipo de evidencia que la aplicación no ofrece: basta una confirmación visible o que el \
 registro, la lista o un historial de la aplicación muestre el resultado. Si la captura posterior al cambio \
 muestra la confirmación de la aplicación (un aviso de guardado, un identificador nuevo) y los valores eran los \
