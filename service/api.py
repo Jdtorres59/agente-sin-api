@@ -44,7 +44,8 @@ class TaskIn(BaseModel):
 async def health() -> dict:
     # Deploy diagnostics only: which commit runs and whether the token is configured (never its value).
     return {"ok": True, "commit": os.environ.get("RAILWAY_GIT_COMMIT_SHA", "local")[:7],
-            "token_set": bool(os.environ.get("TEAM_TOKEN", "").strip())}
+            "token_set": bool(os.environ.get("TEAM_TOKEN", "").strip()),
+            "memory": getattr(runner.memory, "path", None) is not None}
 
 
 @app.post("/tasks", dependencies=[Depends(require_token)])

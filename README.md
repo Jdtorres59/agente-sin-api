@@ -94,7 +94,7 @@ Aprende solo de tareas que la verificación confirmó (y, en desarrollo, que pas
   detiene y el operador sigue desde ahí.
 - **Lecciones:** lo que la verificación exigió antes de aceptar una tarea de ese tipo, y los pasos
   donde una receta dejó de coincidir. Van en el prompt del operador.
-- Está **apagada en producción** (`MEMORY=on` la enciende) hasta que la curva muestre mejora.
+- **Encendida en producción desde las 14:40** (`MEMORY=on`), después de que la curva mostró mejora. `/health` dice si está activa.
 
 ## Evaluación
 
