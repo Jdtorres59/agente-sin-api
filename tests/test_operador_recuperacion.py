@@ -83,6 +83,8 @@ class FakeModelos:
             return {"content": "", "tool_calls": self.guion.pop(0)}
         if mensajes[0]["content"] == prompts.REVISOR_GUARDADO:
             return {"content": '{"aprobar": true, "motivo": "es lo que pide la tarea"}'}
+        if mensajes[0]["content"] == prompts.BAJO_EL_PUNTO:
+            return {"content": "Guardar"}
         return {"content": '{"conforme": false, "problema": "el campo no quedó con el valor pedido"}'}
 
 

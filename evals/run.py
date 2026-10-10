@@ -4,7 +4,6 @@ Uso:
   uv run python -m evals.run                 # todos los casos de evals/cases/
   uv run python -m evals.run E1 E3 --reps 2  # algunos, con repeticiones
   uv run python -m evals.run --dir evals/cases
-  uv run python -m evals.run E1 --reps 3 --memoria   # usa la memoria y aprende de lo verificado
 
 Lee DESKTOP_URL, DESKTOP_PASSWORD y DESKTOP_TOKEN de .env. Llama al núcleo en proceso
 (`agent.core.run_task`), sin pasar por el servicio HTTP.
@@ -21,7 +20,7 @@ from pathlib import Path
 import httpx
 from dotenv import load_dotenv
 
-from agent.contracts import Memory, TaskResult
+from agent.contracts import TaskResult
 from agent.core import run_task
 
 RAIZ = Path(__file__).resolve().parents[1]
@@ -70,27 +69,19 @@ def _llamadas(carpeta: Path) -> int | None:
         return None
 
 
-async def correr(
-    caso: dict, http: httpx.AsyncClient, base: str, url_ws: str, password: str, carpeta: Path, memory: Memory | None
-) -> dict:
+async def correr(caso: dict, http: httpx.AsyncClient, base: str, url_ws: str, password: str, carpeta: Path) -> dict:
     token = {"Authorization": f"Bearer {_requerida('DESKTOP_TOKEN')}"}
     (await http.post(f"{base}/__reset", headers=token)).raise_for_status()
     await asyncio.sleep(4)  # el navegador del escritorio se reinicia
     inicio = time.monotonic()
-    resultado = await run_task(caso["instruccion"], url_ws, password, inicio + PRESUPUESTO_S, memory, carpeta)
+    resultado = await run_task(caso["instruccion"], url_ws, password, inicio + PRESUPUESTO_S, None, carpeta)
     segundos = round(time.monotonic() - inicio, 1)
     remoto = (await http.post(f"{base}/__check", headers=token, json=caso)).json()
     local = chequeo_local(caso, resultado, password)
     pasa = bool(remoto.get("pass")) and all(local.values())
-    aprendio = False
-    if memory is not None and pasa:
-        # Se aprende solo de lo verificado: __check pasó y el estado y el resumen son los esperados.
-        memory.learn(resultado.app_id or "", resultado.spec, resultado)
-        aprendio = True
     return {
         "id": caso["id"],
         "pasa": pasa,
-        "aprendio": aprendio,
         "llamadas": _llamadas(carpeta),
         "app": {c["nombre"]: c["ok"] for c in remoto.get("checks", [])},
         "local": local,
@@ -109,7 +100,6 @@ async def main() -> None:
     parser.add_argument("ids", nargs="*")
     parser.add_argument("--dir", default=str(RAIZ / "evals" / "cases"))
     parser.add_argument("--reps", type=int, default=1)
-    parser.add_argument("--memoria", action="store_true", help="pasa la memoria al núcleo y aprende de los casos que pasan")
     args = parser.parse_args()
 
     load_dotenv(RAIZ / ".env")
@@ -120,27 +110,18 @@ async def main() -> None:
     if args.ids:
         casos = [c for c in casos if c["id"] in args.ids]
 
-    memory = None
-    if args.memoria:
-        try:
-            from agent.memory import get_memory
-        except ImportError as error:
-            raise SystemExit(f"--memoria necesita agent/memory, que aún no está disponible ({error}).")
-        memory = get_memory()
-
     corrida = RAIZ / "runs" / f"evals-{time.strftime('%H%M%S')}"
     filas = []
     async with httpx.AsyncClient(timeout=60) as http:
         for caso in casos:
             for rep in range(args.reps):
-                fila = await correr(caso, http, base, url_ws, password, corrida / f"{caso['id']}-{rep + 1}", memory)
+                fila = await correr(caso, http, base, url_ws, password, corrida / f"{caso['id']}-{rep + 1}")
                 filas.append(fila)
                 fallas = [n for n, ok in {**fila["app"], **fila["local"]}.items() if not ok]
                 print(
                     f"{fila['id']} rep {rep + 1}: {'PASA ' if fila['pasa'] else 'FALLA'} "
                     f"estado={fila['estado']} · {fila['segundos']} s · {fila['acciones']} acciones · "
                     f"{fila['llamadas']} llamadas · US$ {fila['costo']:.4f}"
-                    + (" · aprendió" if fila["aprendio"] else "")
                     + (f" · fallan: {', '.join(fallas)}" if fallas else "")
                 )
                 print("   resumen: " + fila["resumen"].replace("\n", " | "))

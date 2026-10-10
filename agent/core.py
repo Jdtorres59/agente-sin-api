@@ -31,6 +31,8 @@ async def run_task(
     operador: Operador | None = None
     try:
         await driver.connect(url, password)
+        # Un escritorio recién reiniciado puede seguir cargando: se espera a que la pantalla se aquiete.
+        await driver.vnc.asentar(quieto=0.7, esperar_cambio=1.5, maximo=6.0)
         resultado.spec = await comprender(tarea, modelos)
         traza.evento(accion="spec", spec=resultado.spec)
 
@@ -45,7 +47,8 @@ async def run_task(
                     traza.evento(accion="receta", ok=repeticion.ok, pasos=repeticion.steps_done, motivo=repeticion.reason)
                     aviso = (
                         f"Una receta aprendida ya ejecutó {repeticion.steps_done} paso(s) de esta tarea"
-                        + ("" if repeticion.ok else f" y se detuvo: {repeticion.reason}")
+                        + ("" if repeticion.ok else " y se detuvo antes de terminar")
+                        + (f". Detalle: {repeticion.reason}" if repeticion.reason else "")
                         + ". Mira la pantalla, no repitas lo que ya esté hecho, completa lo que falte y verifica."
                     )
             except Exception as error:
@@ -68,6 +71,7 @@ async def run_task(
         await modelos.cerrar()
     if operador is not None:
         resultado.steps = operador.steps
+        resultado.feedback = operador.objeciones
     resultado.cost_usd = round(modelos.uso.costo, 5)
     traza.evento(
         accion="fin",

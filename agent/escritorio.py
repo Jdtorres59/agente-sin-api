@@ -108,15 +108,7 @@ class Escritorio:
         texto = await self._esperar_texto(espera)
         if texto is not None:
             return texto
-        self.vnc.portapapeles = None
-        await self.vnc.pulsar("shift+left")
-        recortado = await self._esperar_texto(espera)
-        if recortado is None:
-            return None
-        self.vnc.portapapeles = None
-        await self.vnc.pulsar("shift+right")
-        completo = await self._esperar_texto(espera)
-        return completo if completo is not None else recortado
+        return await self._forzar_envio(espera)
 
     async def leer_campo(self, x: int, y: int) -> str | None:
         """Texto exacto del campo de texto en (x, y). None si está vacío o no se pudo leer."""
@@ -134,6 +126,23 @@ class Escritorio:
             return False
         ancho, alto = self.tamano
         return (caja[2] - caja[0]) > 0.5 * ancho and (caja[3] - caja[1]) > 0.3 * alto
+
+    def _hubo_resaltado(self, antes: Image.Image) -> bool:
+        """True si al seleccionar apareció un resaltado más ancho que un cursor de texto."""
+        caja = ImageChops.difference(antes, self.vnc.captura()).getbbox()
+        return caja is not None and (caja[2] - caja[0]) >= 6
+
+    async def _forzar_envio(self, espera: float = 1.5) -> str | None:
+        """Con todo seleccionado: encoge la selección un carácter y la restaura para leerla completa."""
+        self.vnc.portapapeles = None
+        await self.vnc.pulsar("shift+left")
+        recortado = await self._esperar_texto(espera)
+        if recortado is None:
+            return None
+        self.vnc.portapapeles = None
+        await self.vnc.pulsar("shift+right")
+        completo = await self._esperar_texto(espera)
+        return completo if completo is not None else recortado
 
     @staticmethod
     def fuera_de_campo(leido: str | None, texto: str) -> bool:
@@ -165,6 +174,12 @@ class Escritorio:
             if intento == 0:
                 # Seleccionar ya hizo que el servidor mandara el texto que había en el campo.
                 anterior = await self._esperar_texto(0.9)
+                if anterior is None and self._hubo_resaltado(antes):
+                    # Se resaltó texto pero no llegó: es igual al último que mandó el servidor.
+                    # Encoger y restaurar la selección lo obliga a mandarlo (ver leer_seleccion).
+                    anterior = await self._forzar_envio()
+                    await self.vnc.pulsar("ctrl+a")  # deja todo seleccionado antes de escribir
+                    await asyncio.sleep(0.1)
             if texto:
                 await self.vnc.escribir(texto, pausa=PAUSA_TECLA)
             else:

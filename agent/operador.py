@@ -1,5 +1,6 @@
 """Bucle del operador: observar → decidir → actuar, con compuertas y verificación."""
 
+import asyncio
 import io
 import json
 import os
@@ -7,12 +8,14 @@ import re
 import time
 from dataclasses import dataclass, field
 
-from PIL import Image, ImageChops
+import unicodedata
+
+from PIL import Image, ImageChops, ImageDraw
 
 from . import prompts
 from .contracts import Step
 from .escritorio import Escritorio, cerca_de_borde
-from .modelos import Modelos, imagen_a_url
+from .modelos import ErrorModelo, Modelos, imagen_a_url
 from .recuperacion import Diario, recuperar
 from .tablas import Tabla
 from .traza import Traza
@@ -29,6 +32,16 @@ _PARECE_CAMBIO = re.compile(
     r"accept|export|import|print|sí|ok|yes)\b",
     re.IGNORECASE,
 )
+
+# Controles que solo navegan. Si el operador los marca como cambio de datos, no hace falta revisarlos.
+_SOLO_NAVEGA = re.compile(r"\b(buscar|filtrar|siguiente|anterior|volver|search|filter|next|previous|back)\b", re.IGNORECASE)
+MAX_CONSEJOS = 3  # consultas al supervisor por atasco, por tarea
+
+
+def _palabras(texto: str) -> set[str]:
+    plano = unicodedata.normalize("NFD", texto.lower())
+    plano = "".join(c for c in plano if unicodedata.category(c) != "Mn")
+    return {p for p in re.findall(r"[a-z0-9]+", plano) if len(p) >= 3}
 
 
 def _herramienta(nombre: str, descripcion: str, propiedades: dict, requeridas: list[str]) -> dict:
@@ -177,7 +190,9 @@ class Operador:
         self.paso = 0
         self.firmas: list[str] = []  # qué pidió el operador en cada turno, para detectar bucles
         self.sin_efecto = 0  # acciones seguidas que no cambiaron la pantalla
-        self.escalar = False  # el próximo turno lo decide el supervisor
+        self.consejos = 0  # veces que se le pidió al supervisor desatascar
+        self.objeciones: list[str] = []  # lo que objetó el verificador; la memoria lo guarda como lección
+        self.costo_punto = 0  # comprobaciones de qué hay bajo el punto de un clic
         self.tabla: Tabla | None = None
         self.evidencia = None  # captura tomada justo después del último cambio de datos
         self.diario = Diario()  # valor anterior exacto de cada campo editado, para poder restaurarlo
@@ -238,6 +253,59 @@ class Operador:
         )
         return bool(veredicto.get("conforme")), str(veredicto.get("problema", ""))
 
+    async def _pedir_consejo(self) -> str:
+        """Atasco: el supervisor mira la pantalla y el registro, y sugiere el siguiente paso."""
+        self.consejos += 1
+        veredicto = await self._consultar_supervisor(prompts.DESATASCAR, "El operador está atascado. ¿Qué debe hacer ahora?")
+        return str(veredicto.get("consejo") or veredicto.get("motivo") or "")[:500]
+
+    async def _texto_bajo_el_punto(self, x: int, y: int) -> str | None:
+        """Lo que el modelo barato lee bajo el punto del clic, en un recorte con una cruz. None: nada legible."""
+        imagen = self.esc.vnc.captura()
+        izquierda, arriba = max(0, x - 120), max(0, y - 36)
+        recorte = imagen.crop((izquierda, arriba, min(imagen.width, x + 120), min(imagen.height, y + 36))).convert("RGB")
+        cx, cy = x - izquierda, y - arriba
+        dibujo = ImageDraw.Draw(recorte)
+        for desde, hasta in ((4, 14), (-14, -4)):  # cruz abierta en el centro para no tapar el texto
+            dibujo.line((cx + desde, cy, cx + hasta, cy), fill=(255, 0, 0), width=1)
+            dibujo.line((cx, cy + desde, cx, cy + hasta), fill=(255, 0, 0), width=1)
+        recorte = recorte.resize((recorte.width * 2, recorte.height * 2), Image.LANCZOS)
+        try:
+            mensaje = await self.modelos.chat(
+                self.modelo,
+                [
+                    {"role": "system", "content": prompts.BAJO_EL_PUNTO},
+                    {"role": "user", "content": [{"type": "image_url", "image_url": {"url": imagen_a_url(recorte)}}]},
+                ],
+                max_tokens=400,
+                reasoning={"effort": "low"},
+            )
+        except ErrorModelo:
+            return None
+        self.costo_punto += 1
+        texto = " ".join((mensaje.get("content") or "").split())[:80]
+        return None if not texto or texto.lower().strip(".") == "ninguno" else texto
+
+    async def _punto_equivocado(self, a: dict) -> str | None:
+        """Motivo para no hacer clic si bajo el punto hay un control distinto al que dijo el operador."""
+        objetivo = a.get("objetivo", "")
+        leido = await self._texto_bajo_el_punto(a["x"], a["y"])
+        self.traza.evento(paso=self.paso, accion="punto", x=a["x"], y=a["y"], objetivo=objetivo, leido=leido)
+        if leido is None:
+            return None
+        if a.get("cambia_datos"):
+            # Una acción de cambio solo se ejecuta si lo que hay bajo el punto es lo que se dijo.
+            equivocado = not (_palabras(leido) & _palabras(objetivo))
+        else:
+            # Un clic inofensivo solo se frena si en realidad cae sobre un control de acción.
+            equivocado = bool(_PARECE_CAMBIO.search(leido)) and not _PARECE_CAMBIO.search(objetivo)
+        if not equivocado:
+            return None
+        return (
+            f"NO ejecutada: bajo el punto ({a['x']}, {a['y']}) está el control «{leido}», no «{objetivo}». "
+            f"Vuelve a ubicar «{objetivo}» en la captura."
+        )
+
     # --- acciones ------------------------------------------------------------------------
 
     async def _ejecutar(self, nombre: str, a: dict) -> str:
@@ -249,11 +317,18 @@ class Operador:
                 f"NO ejecutada: el punto ({a['x']}, {a['y']}) está en el borde de un control. "
                 "Apunta al centro del control que quieres."
             )
-        if nombre == "clic" and not a.get("cambia_datos") and _PARECE_CAMBIO.search(a.get("objetivo", "")):
+        objetivo = a.get("objetivo", "")
+        if nombre == "clic" and a.get("cambia_datos") and _SOLO_NAVEGA.search(objetivo) and not _PARECE_CAMBIO.search(objetivo):
+            a["cambia_datos"] = False  # buscar o paginar no cambia datos: no gasta una revisión
+        if nombre == "clic" and not a.get("cambia_datos") and _PARECE_CAMBIO.search(objetivo):
             a["cambia_datos"] = True
             marcada_por_nombre = True
         else:
             marcada_por_nombre = False
+        if nombre == "clic":
+            motivo = await self._punto_equivocado(a)
+            if motivo:
+                return motivo
         revisada = False
         if nombre in ("clic", "tecla") and a.get("cambia_datos"):
             revisada = True
@@ -368,19 +443,25 @@ class Operador:
             return resultado
         cambiados = self._pixeles_cambiados(antes, self.esc.vnc.captura())
         comun = {"screen_changed_px": cambiados, "model": self.modelo}
+        etiqueta = a.get("objetivo") or a.get("campo")
         if nombre == "clic":
             tipo = "double_click" if a.get("veces", 1) == 2 else "click"
-            self.steps.append(Step(tipo, x=a["x"], y=a["y"], anchor_png=self._ancla(antes, a["x"], a["y"]), **comun))
+            self.steps.append(
+                Step(tipo, x=a["x"], y=a["y"], anchor_png=self._ancla(antes, a["x"], a["y"]),
+                     label=etiqueta, gated=bool(a.get("cambia_datos")), **comun)
+            )  # fmt: skip
         elif nombre == "rellenar":
             # Una acción compuesta: clic en el campo, seleccionar todo y escribir. El cambio de
             # pantalla se midió para el conjunto, así que va en el clic y en el texto.
-            self.steps.append(Step("click", x=a["x"], y=a["y"], anchor_png=self._ancla(antes, a["x"], a["y"]), **comun))
+            self.steps.append(
+                Step("click", x=a["x"], y=a["y"], anchor_png=self._ancla(antes, a["x"], a["y"]), label=etiqueta, **comun)
+            )
             self.steps.append(Step("key", key="ctrl+a", model=self.modelo))
             self.steps.append(Step("type", text=a["texto"], slot=self._slot(a["texto"]), **comun))
         elif nombre == "escribir":
             self.steps.append(Step("type", text=a["texto"], slot=self._slot(a["texto"]), **comun))
         elif nombre == "tecla":
-            self.steps.append(Step("key", key=a["combinacion"], **comun))
+            self.steps.append(Step("key", key=a["combinacion"], gated=bool(a.get("cambia_datos")), **comun))
         elif nombre == "rueda":
             direccion = "down" if a["pasos"] > 0 else "up"
             self.steps.append(Step("scroll", x=a["x"], y=a["y"], direction=direccion, **comun))
@@ -441,20 +522,25 @@ class Operador:
         if self.aviso_inicial:
             inicio += f"\n\n{self.aviso_inicial}"
         mensajes = [{"role": "system", "content": sistema}, await self._observacion(inicio, 1)]
-        rechazos = 0
+        rechazos = errores_modelo = 0
 
         for paso in range(1, MAX_PASOS + 1):
             self.paso = paso
             if self._quedan() < RESERVA_SEGUNDOS:
                 return self._cierre_forzado("se agotó el tiempo", paso)
             self._podar_capturas(mensajes)
-            modelo_turno = self.supervisor if self.escalar else self.modelo
-            if self.escalar:
-                self.traza.evento(paso=paso, accion="escalamiento", modelo=modelo_turno)
-            self.escalar = False
-            respuesta = await self.modelos.chat(
-                modelo_turno, mensajes, HERRAMIENTAS, max_tokens=2500, tool_choice="required", reasoning={"effort": "low"}
-            )
+            try:
+                respuesta = await self.modelos.chat(
+                    self.modelo, mensajes, HERRAMIENTAS, max_tokens=2500, tool_choice="required", reasoning={"effort": "low"}
+                )
+                errores_modelo = 0
+            except ErrorModelo as error:
+                errores_modelo += 1
+                self.traza.evento(paso=paso, accion="error_modelo", detalle=str(error)[:300])
+                if errores_modelo >= 2:
+                    return self._cierre_forzado("el modelo no respondió", paso)
+                await asyncio.sleep(1.5)
+                continue
             llamadas = respuesta.get("tool_calls") or []
             mensajes.append({"role": "assistant", "content": respuesta.get("content") or "", "tool_calls": llamadas})
             if not llamadas:
@@ -500,15 +586,21 @@ class Operador:
             if cierre is None:
                 self.firmas.append(json.dumps([(c["function"]["name"], c["function"].get("arguments")) for c in llamadas]))
                 aviso = "Resultados arriba."
-                repetido = len(self.firmas) >= 3 and len(set(self.firmas[-3:])) == 1
+                f = self.firmas
+                repetido = (len(f) >= 3 and len(set(f[-3:])) == 1) or (len(f) >= 4 and f[-1] == f[-3] and f[-2] == f[-4])
                 if repetido or self.sin_efecto >= 2:
-                    # Escalamiento: el siguiente turno lo decide el modelo fuerte, con el aviso a la vista.
-                    self.escalar = True
+                    # Escalamiento: el supervisor mira la pantalla y aconseja; el operador sigue con ese consejo.
                     self.sin_efecto = 0
+                    self.firmas.clear()
                     aviso = (
                         "AVISO: llevas varios turnos repitiendo lo mismo o sin efecto en la pantalla. No repitas esa "
                         "acción. Mira con cuidado la captura actual y cambia de estrategia."
                     )
+                    if self.consejos < MAX_CONSEJOS:
+                        consejo = await self._pedir_consejo()
+                        self.traza.evento(paso=paso, accion="escalamiento", consejo=consejo)
+                        if consejo:
+                            aviso += f"\nCONSEJO DEL SUPERVISOR: {consejo}"
                 mensajes.append(await self._observacion(aviso, paso + 1))
                 continue
 
@@ -519,6 +611,8 @@ class Operador:
                 cierre.verificado = True
                 return cierre
             rechazos += 1
+            if problema:
+                self.objeciones.append(problema)
             if rechazos >= 2 or self._quedan() < RESERVA_SEGUNDOS + 20:
                 if cierre.estado == "terminada":
                     cierre.estado = "fallida"

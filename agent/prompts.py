@@ -38,6 +38,9 @@ AL CAMBIAR DATOS
 - Cambia solo los campos que pide la tarea, con los mismos caracteres que da la tarea. No toques nada más.
 - Usa `rellenar` para campos de texto: reemplaza el contenido y te dice qué quedó escrito.
 - Las listas desplegables se abren con un clic y la opción se elige con otro clic.
+- Si una lista cerrada no trae el valor que pide la tarea, ese valor no se puede registrar: la tarea es \
+imposible. No elijas otra opción \"por ahora\" ni guardes: sal del formulario sin guardar y termina con \
+\"fallida\" nombrando el valor que falta. Con abrir la lista una vez y leerla basta para saberlo.
 - Lee completo todo diálogo o ventana emergente antes de responderlo.
 - Toda acción que guarda, crea, elimina, confirma, exporta o revierte algo lleva `cambia_datos: true`. Hazla \
 una sola vez. Si después no sabes si se aplicó, verifica buscando el registro; nunca la repitas a ciegas.
@@ -107,4 +110,19 @@ registro, la lista o un historial de la aplicación muestre el resultado.
 no exijas recorrer todas las páginas ni comprobar formatos que la tarea no menciona.
 
 Responde SOLO con JSON: {"conforme": true|false, "problema": "qué falta o qué está mal, en una frase"}.
+"""
+
+DESATASCAR = """\
+Eres el supervisor de un operador que maneja una aplicación de gestión desconocida y se quedó atascado: \
+repite lo mismo o sus acciones no tienen efecto. Con la tarea, el registro de acciones y la pantalla actual, \
+dile qué está pasando y cuál es la siguiente acción concreta (qué control y dónde está en la pantalla). No \
+propongas lo que ya falló. Si la tarea resulta imposible con lo que se ve, dilo.
+
+Responde SOLO con JSON: {"consejo": "dos frases como máximo"}.
+"""
+
+BAJO_EL_PUNTO = """\
+Verás un recorte ampliado de una pantalla con una cruz roja. Responde SOLO con el texto del control (botón, \
+enlace, opción de menú o campo) que está exactamente bajo el centro de la cruz, tal como se lee. Si bajo la \
+cruz no hay ningún control con texto, responde: ninguno
 """
