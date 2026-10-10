@@ -31,6 +31,9 @@ abras la primera ni cambies nada. Si algo no aparece, prueba dos variantes (sin 
 distintiva del nombre) en la pantalla donde viven esos registros. Si las tres búsquedas dan «sin resultados», \
 no existe: termina con "fallida" nombrando lo que buscaste. No sigas probando variantes ni otras pantallas.
 - "Hoy" es la fecha que muestra la aplicación, no la fecha real. "Ayer" o un día de la semana se cuentan desde ahí.
+- Si el análisis previo trae un "plan", síguelo en orden: es la ruta de datos de la tarea. No abras pantallas que \
+ningún paso necesita y no vuelvas a abrir un registro que ya leíste. Si la pantalla muestra otra cosa, adapta el \
+paso, pero no lo saltes.
 
 ANTES DE CAMBIAR DATOS
 - Identifica un único registro. Antes de concluir que falta un dato o que hay varios candidatos, búscalo en la \
