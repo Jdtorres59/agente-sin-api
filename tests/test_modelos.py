@@ -128,3 +128,16 @@ def test_one_call_never_spends_more_than_its_total_budget(esperas, monkeypatch):
     gastado = reloj["t"] - 1000.0
     assert gastado <= modelos.TOPE_LLAMADA + modelos.TIEMPO_PETICION + 1, gastado
     assert [p["model"] for p in cliente._http.pedidos].count("barato") == 2  # 45 s + 1 s + lo que quedaba
+
+
+def test_credit_held_by_in_flight_requests_is_retried(esperas):
+    """Un 402 por crédito reservado en peticiones en curso se resuelve solo: no debe matar la tarea."""
+    retenido = Respuesta(402, {"error": {"message": "This request would exceed your available credits given "
+                                                    "your current in-flight requests. Retry after in-flight requests settle."}})  # fmt: skip
+    _, mensaje = _chat([retenido, OK])
+    assert mensaje["content"] == "hola" and esperas == [1]
+
+
+def test_a_402_without_credit_left_is_not_retried(esperas):
+    with pytest.raises(ErrorModelo):
+        _chat([Respuesta(402, {"error": {"message": "Insufficient credits"}}), Respuesta(402, {"error": {"message": "Insufficient credits"}})])

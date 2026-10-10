@@ -90,6 +90,9 @@ class Modelos:
             raise _Pasajero(f"HTTP 200 sin respuesta {detalle}".strip())
         if estado == 400 and "provider returned error" in detalle.lower():
             raise _Pasajero(f"HTTP 400 {detalle}")
+        if estado == 402 and "in-flight" in detalle.lower():
+            # Crédito reservado por peticiones en curso: el propio mensaje pide reintentar cuando terminen.
+            raise _Pasajero(f"HTTP 402 {detalle}")
         if estado != 200:
             raise ErrorModelo(f"OpenRouter respondió {estado}: {detalle}")
         self.uso.sumar(cuerpo["model"], datos.get("usage") or {})
