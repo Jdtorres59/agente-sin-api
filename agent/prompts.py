@@ -44,15 +44,16 @@ AL CAMBIAR DATOS
 - Cambia solo los campos que pide la tarea, con los mismos caracteres que da la tarea. No toques nada más.
 - Usa `rellenar` para campos de texto: reemplaza el contenido y te dice qué quedó escrito.
 - Las listas desplegables se abren con un clic y la opción se elige con otro clic.
-- Las opciones de una lista desplegable se leen en la captura que sigue al clic que la abre; `leer_pantalla` \
-la cerraría. Esa captura ya es la lectura: ábrela una sola vez y recuerda el número de ese turno. Si la tarea \
-trae un valor para una lista, revisa esa lista antes de llenar los demás campos.
+- Para saber qué opciones tiene una lista desplegable usa `leer_opciones`: la abre, te da el texto de las \
+opciones y la cierra sin elegir. `leer_pantalla` no las muestra. Si la tarea trae un valor para una lista, \
+lee sus opciones antes de llenar los demás campos.
 - Si una lista cerrada no trae el valor que pide la tarea, ese valor no se puede registrar: la tarea es \
 imposible. No elijas otra opción \"por ahora\" ni guardes: cierra la lista, sal del formulario sin guardar y \
 termina con \"fallida\" nombrando el valor que falta y las opciones que sí hay. No intentes forzarlo \
 escribiendo con el teclado sobre la lista ni recorriéndola con flechas: eso deja elegida otra opción.
 - Lee completo todo diálogo o ventana emergente antes de responderlo.
-- Toda acción que guarda, crea, elimina, confirma, exporta o revierte algo lleva `cambia_datos: true`. Hazla \
+- Toda acción que guarda, crea, elimina, confirma, exporta o revierte algo lleva `cambia_datos: true`: también \
+emitir, facturar, cobrar, agendar, cancelar, marcar un estado o cualquier otro botón que actúe al pulsarlo. Hazla \
 una sola vez. Si después no sabes si se aplicó, verifica buscando el registro; nunca la repitas a ciegas.
 - Si un formulario quedó con cambios que no corresponden, sal sin guardar. Salir de un formulario sin guardar \
 no cambia datos: va con `cambia_datos: false`.
@@ -155,7 +156,19 @@ Responde SOLO con JSON: {"consejo": "dos frases como máximo"}.
 """
 
 BAJO_EL_PUNTO = """\
-Verás un recorte ampliado de una pantalla con una cruz roja. Responde SOLO con el texto del control (botón, \
-enlace, opción de menú o campo) que está exactamente bajo el centro de la cruz, tal como se lee. Si bajo la \
-cruz no hay ningún control con texto, responde: ninguno
+Verás un recorte ampliado de una pantalla con una cruz roja. Mira el control (botón, enlace, opción de menú o \
+campo) que está exactamente bajo el centro de la cruz y responde SOLO con JSON:
+{"texto": "el texto del control tal como se lee, o ninguno si bajo la cruz no hay un control con texto", \
+"ejecuta": true | false}
+
+"ejecuta" es true si, por lo que dice su nombre, pulsarlo hace algo de una vez sobre los datos: guardar, \
+crear, emitir, cobrar, agendar, cancelar o anular un registro, marcar un estado, eliminar, enviar, confirmar. \
+Es false si solo abre un menú, una pantalla o un formulario, busca, filtra, pagina, cierra o vuelve, o si es \
+un campo o una lista.
+"""
+
+OPCIONES_DE_LISTA = """\
+Verás un recorte ampliado de una pantalla con una lista desplegable abierta. Transcribe sus opciones, una por \
+línea, en el orden en que aparecen y con los mismos caracteres. No añadas nada más. Si la lista parece seguir \
+más abajo (barra de desplazamiento o una opción cortada), añade al final la línea: (puede haber más opciones)
 """

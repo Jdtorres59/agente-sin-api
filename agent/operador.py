@@ -28,8 +28,10 @@ RESERVA_SEGUNDOS = 30  # margen para verificar y reportar antes del límite
 # basta. Solo palabras completas: "Datos generales" o "Envíos" no son acciones.
 _PARECE_CAMBIO = re.compile(
     r"\b(guardar|grabar|crear|eliminar|borrar|confirmar|exportar|importar|generar|enviar|aprobar|rechazar|"
-    r"anular|revertir|aceptar|registrar|pagar|imprimir|save|delete|remove|submit|create|approve|reject|send|"
-    r"accept|export|import|print|sí|ok|yes)\b",
+    r"anular|revertir|aceptar|registrar|pagar|imprimir|facturar|emitir|agendar|programar|reprogramar|cancelar|"
+    r"cobrar|abonar|asignar|autorizar|firmar|transferir|reembolsar|restablecer|regenerar|archivar|publicar|"
+    r"activar|desactivar|bloquear|finalizar|procesar|save|delete|remove|submit|create|approve|reject|send|"
+    r"accept|export|import|print|issue|schedule|cancel|pay|refund|assign|archive|sí|ok|yes)\b",
     re.IGNORECASE,
 )
 
@@ -65,7 +67,8 @@ def _herramienta(nombre: str, descripcion: str, propiedades: dict, requeridas: l
 _XY = {"x": {"type": "integer"}, "y": {"type": "integer"}}
 _CAMBIA = {
     "type": "boolean",
-    "description": "true si esta acción guarda, crea, elimina, confirma, exporta o revierte algo.",
+    "description": "true si esta acción guarda, crea, elimina, confirma, exporta, emite, agenda, cancela, "
+    "marca un estado o revierte algo: cualquier control que actúa sobre los datos al pulsarlo.",
 }
 HERRAMIENTAS = [
     _herramienta(
@@ -104,6 +107,13 @@ HERRAMIENTAS = [
         [],
     ),
     _herramienta("leer_campo", "Devuelve el texto exacto de un campo de texto.", _XY, ["x", "y"]),
+    _herramienta(
+        "leer_opciones",
+        "Abre la lista desplegable que está en (x, y), devuelve el texto de sus opciones y la cierra sin elegir "
+        "nada. Úsala para saber qué opciones tiene una lista antes de elegir o de concluir que falta una.",
+        {**_XY, "lista": {"type": "string", "description": "Nombre de la lista."}},
+        ["x", "y", "lista"],
+    ),
     _herramienta(
         "leer_lista",
         "Lee la tabla de la lista en pantalla recorriendo TODAS sus páginas y la guarda para `contar`. Llámala "
@@ -219,6 +229,7 @@ class Operador:
         self.evidencia = None  # captura tomada justo después del último cambio de datos
         self.capturas: dict[int, str] = {}  # la captura que el operador vio en cada turno, ya codificada
         self.rechazadas: dict[str, tuple[int, str]] = {}  # acción rechazada → (veces, último motivo)
+        self.lista_abierta: str | None = None  # captura de la última lista desplegable leída, ya codificada
         self.diario = Diario()  # valor anterior exacto de cada campo editado, para poder restaurarlo
         self.recuperable = recuperable  # el sub-operador de una reversión no vuelve a recuperar
 
@@ -240,6 +251,8 @@ class Operador:
         if con_evidencia and self.evidencia is not None:
             antes = "pantalla justo después del último cambio de datos (los avisos pueden ser pasajeros)"
             imagenes.append((antes, imagen_a_url(self.evidencia)))
+        if self.lista_abierta is not None:
+            imagenes.append(("última lista desplegable leída con leer_opciones, abierta", self.lista_abierta))
         if turno in self.capturas:
             senalada = f"captura que el operador vio al empezar el turno {turno} y que señala como evidencia"
             imagenes.append((senalada, self.capturas[turno]))
@@ -292,8 +305,12 @@ class Operador:
         veredicto = await self._consultar_supervisor(prompts.DESATASCAR, "El operador está atascado. ¿Qué debe hacer ahora?")
         return str(veredicto.get("consejo") or veredicto.get("motivo") or "")[:500]
 
-    async def _texto_bajo_el_punto(self, x: int, y: int) -> str | None:
-        """Lo que el modelo barato lee bajo el punto del clic, en un recorte con una cruz. None: nada legible."""
+    async def _texto_bajo_el_punto(self, x: int, y: int) -> tuple[str | None, bool]:
+        """Lo que el modelo barato lee bajo el punto del clic, en un recorte con una cruz.
+
+        Devuelve (texto del control o None si no hay nada legible, si ese control ejecuta una acción).
+        Lo segundo no depende de ninguna lista de verbos: lo juzga el modelo por el nombre que ve.
+        """
         imagen = self.esc.vnc.captura()
         izquierda, arriba = max(0, x - 120), max(0, y - 36)
         recorte = imagen.crop((izquierda, arriba, min(imagen.width, x + 120), min(imagen.height, y + 36))).convert("RGB")
@@ -314,36 +331,98 @@ class Operador:
                 reasoning={"effort": "low"},
             )
         except ErrorModelo:
-            return None
+            return None, False
         self.costo_punto += 1
-        texto = " ".join((mensaje.get("content") or "").split())[:80]
-        return None if not texto or texto.lower().strip(".") == "ninguno" else texto
+        contenido = mensaje.get("content") or ""
+        visto = _json(contenido)
+        texto = " ".join(str(visto.get("texto", contenido) if visto else contenido).split())[:80]
+        if not texto or texto.lower().strip(".") == "ninguno":
+            return None, False
+        return texto, visto.get("ejecuta") is True
 
-    async def _punto_equivocado(self, a: dict) -> str | None:
-        """Motivo para no hacer clic si bajo el punto hay un control distinto al que dijo el operador."""
+    async def _punto_equivocado(self, a: dict) -> tuple[str | None, bool, str | None]:
+        """Comprueba qué control hay bajo el punto del clic.
+
+        Devuelve (motivo para no hacer clic o None, si es una acción que el operador no marcó como
+        cambio, texto leído bajo el punto). Lo segundo manda el clic a la compuerta aunque el
+        operador lo creyera inofensivo.
+        """
         objetivo = a.get("objetivo", "")
-        leido = await self._texto_bajo_el_punto(a["x"], a["y"])
-        self.traza.evento(paso=self.paso, accion="punto", x=a["x"], y=a["y"], objetivo=objetivo, leido=leido)
+        leido, ejecuta = await self._texto_bajo_el_punto(a["x"], a["y"])
+        self.traza.evento(paso=self.paso, accion="punto", x=a["x"], y=a["y"], objetivo=objetivo, leido=leido, ejecuta=ejecuta)
         if leido is None:
-            return None
+            return None, False, None
+        # «Volver sin guardar» no es el botón «Guardar»: lo negado no cuenta para la coincidencia.
+        mismo = bool(_palabras(leido) & _palabras(_NEGADO.sub(" ", objetivo)))
         if a.get("cambia_datos"):
             # Una acción de cambio solo se ejecuta si lo que hay bajo el punto es lo que se dijo.
-            equivocado = not (_palabras(leido) & _palabras(objetivo))
+            equivocado, sin_marcar = not mismo, False
         else:
-            # Un clic inofensivo solo se frena si en realidad cae sobre un control de acción.
-            equivocado = _nombra_cambio(leido) and not _nombra_cambio(objetivo)
+            es_accion = (_nombra_cambio(leido) or ejecuta) and not _SOLO_NAVEGA.search(leido)
+            # Un clic inofensivo que cae sobre una acción: si es otro control, no se hace; si es el
+            # que el operador quería, se trata como cambio y lo ve el revisor.
+            equivocado = es_accion and not mismo and not _nombra_cambio(objetivo)
+            sin_marcar = es_accion and mismo
         if not equivocado:
-            return None
-        return (
+            return None, sin_marcar, leido
+        motivo = (
             f"NO ejecutada: bajo el punto ({a['x']}, {a['y']}) está el control «{leido}», no «{objetivo}». "
             f"Vuelve a ubicar «{objetivo}» en la captura."
+        )
+        return motivo, False, leido
+
+    async def _leer_opciones(self, x: int, y: int, lista: str) -> str:
+        """Abre una lista desplegable, transcribe sus opciones de la captura y la cierra con Escape.
+
+        Las opciones de una lista no salen al leer el texto de la pantalla: solo se ven con la lista
+        abierta. La captura queda guardada para que el verificador la vea.
+        """
+        leido, ejecuta = await self._texto_bajo_el_punto(x, y)
+        if leido and (_nombra_cambio(leido) or ejecuta):
+            # Abrir la lista es un clic: no se hace sobre un control que ejecuta algo.
+            return f"NO ejecutada: bajo el punto ({x}, {y}) está el control «{leido}», que no es una lista."
+        antes = await self.esc.captura()
+        await self.esc.clic(x, y)
+        abierta = await self.esc.captura()
+        zona = ImageChops.difference(antes.convert("RGB"), abierta.convert("RGB")).getbbox()
+        if zona is None:
+            return "la lista no se abrió: la pantalla no cambió. Comprueba el punto en la captura."
+        margen = 12
+        caja = (max(0, zona[0] - margen), max(0, zona[1] - margen), min(abierta.width, zona[2] + margen), min(abierta.height, zona[3] + margen))  # fmt: skip
+        recorte = abierta.crop(caja).convert("RGB")
+        recorte = recorte.resize((recorte.width * 2, recorte.height * 2), Image.LANCZOS)
+        try:
+            mensaje = await self.modelos.chat(
+                self.modelo,
+                [
+                    {"role": "system", "content": prompts.OPCIONES_DE_LISTA},
+                    {"role": "user", "content": [{"type": "image_url", "image_url": {"url": imagen_a_url(recorte)}}]},
+                ],
+                max_tokens=1200,
+                reasoning={"effort": "low"},
+            )
+            opciones = [linea.strip() for linea in (mensaje.get("content") or "").splitlines() if linea.strip()]
+        except ErrorModelo:
+            opciones = []
+        await self.esc.tecla("escape")
+        despues = await self.esc.captura()
+        self.traza.captura(800 + self.paso, abierta)
+        self.traza.evento(paso=self.paso, accion="opciones", lista=lista, opciones=opciones)
+        if not opciones:
+            return "no se pudieron leer las opciones. Abre la lista con un clic y míralas en la captura siguiente."
+        self.lista_abierta = imagen_a_url(abierta)
+        cerrada = ImageChops.difference(antes.convert("RGB"), despues.convert("RGB")).getbbox() is None
+        aviso = "" if cerrada else " Aviso: la pantalla no quedó igual que antes de abrirla; revisa la captura."
+        return (
+            f"Opciones de «{lista}», leídas con la lista abierta: " + " | ".join(opciones)
+            + ". La lista se cerró con Escape, sin elegir nada." + aviso
         )
 
     # --- acciones ------------------------------------------------------------------------
 
     async def _ejecutar(self, nombre: str, a: dict) -> str:
         cambio = lambda hubo: "la pantalla cambió" if hubo else "la pantalla NO cambió (puede no haber tenido efecto)"  # noqa: E731
-        if nombre in ("clic", "rellenar", "leer_campo") and cerca_de_borde(self.esc.vnc.captura(), a["x"], a["y"]):
+        if nombre in ("clic", "rellenar", "leer_campo", "leer_opciones") and cerca_de_borde(self.esc.vnc.captura(), a["x"], a["y"]):
             # Un clic pegado al borde puede caer en el control vecino: no se ejecuta.
             self.traza.evento(paso=self.paso, accion="borde", x=a["x"], y=a["y"])
             return (
@@ -358,12 +437,16 @@ class Operador:
             marcada_por_nombre = True
         else:
             marcada_por_nombre = False
+        leido = None
         # La comprobación del punto cuesta ~2 s: se hace donde un error cambia datos, es decir en las
         # acciones de cambio y en los clics que caen dentro de un control con borde (un botón).
         if nombre == "clic" and (a.get("cambia_datos") or dentro_de_control(self.esc.vnc.captura(), a["x"], a["y"])):
-            motivo = await self._punto_equivocado(a)
+            motivo, sin_marcar, leido = await self._punto_equivocado(a)
             if motivo:
                 return motivo
+            if sin_marcar:
+                a["cambia_datos"] = True  # el control ejecuta algo aunque el operador no lo dijera
+                marcada_por_nombre = True
         revisada = False
         if nombre in ("clic", "tecla") and a.get("cambia_datos"):
             revisada = True
@@ -372,6 +455,8 @@ class Operador:
                 if nombre == "clic"
                 else f"tecla {a.get('combinacion')}"
             )
+            if leido:
+                descripcion += f"; bajo ese punto se lee «{leido}»"
             veces, ultimo = self.rechazadas.get(descripcion, (0, ""))
             if veces >= MAX_RECHAZOS_IGUALES:
                 self.traza.evento(paso=self.paso, accion="rechazo_repetido", descripcion=descripcion, veces=veces)
@@ -428,6 +513,8 @@ class Operador:
             if texto is None:
                 return "no se pudo leer el texto de la pantalla"
             return f"TEXTO DE LA PANTALLA (al leer se cerraron los menús que hubiera abiertos):\n{texto[:8000]}"
+        if nombre == "leer_opciones":
+            return await self._leer_opciones(a["x"], a["y"], a.get("lista", ""))
         if nombre == "leer_campo":
             leido = await self.esc.leer_campo(a["x"], a["y"])
             return "el campo está vacío o no es un campo de texto" if leido is None else f"el campo contiene «{leido}»"

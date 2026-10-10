@@ -147,3 +147,34 @@ def test_the_same_rejected_action_stops_being_reviewed():
     asyncio.run(operador.correr())
     assert esc.clics == [] and modelos.revisiones == 3
     assert "ya rechazó 3 veces" in modelos.ultimo_usuario or any("ya rechazó 3 veces" in linea for linea in operador.bitacora)
+
+
+def test_an_action_button_the_operator_did_not_flag_goes_to_the_reviewer():
+    """La compuerta no depende de una lista de verbos: el modelo dice si el control ejecuta algo."""
+    guion = [[_llamada("clic", x=72, y=185, objetivo="Liquidar turno", cambia_datos=False)], FIN]
+    esc, modelos = _correr(guion, bajo_el_punto='{"texto": "Liquidar turno", "ejecuta": true}')
+    assert esc.clics == [(72, 185)] and modelos.revisiones == 1
+
+
+def test_a_harmless_click_that_lands_on_another_action_is_not_executed():
+    guion = [[_llamada("clic", x=72, y=185, objetivo="Ver detalle", cambia_datos=False)], FIN]
+    esc, modelos = _correr(guion, bajo_el_punto='{"texto": "Liquidar turno", "ejecuta": true}')
+    assert esc.clics == [] and modelos.revisiones == 0
+
+
+def test_a_control_that_only_opens_something_is_not_reviewed():
+    guion = [[_llamada("clic", x=72, y=185, objetivo="Nuevo registro", cambia_datos=False)], FIN]
+    esc, modelos = _correr(guion, bajo_el_punto='{"texto": "Nuevo registro", "ejecuta": false}')
+    assert esc.clics == [(72, 185)] and modelos.revisiones == 0
+
+
+def test_a_search_button_is_never_treated_as_an_action():
+    guion = [[_llamada("clic", x=72, y=185, objetivo="Buscar", cambia_datos=False)], FIN]
+    esc, modelos = _correr(guion, bajo_el_punto='{"texto": "Buscar", "ejecuta": true}')
+    assert esc.clics == [(72, 185)] and modelos.revisiones == 0
+
+
+def test_more_action_verbs_are_gated_by_name():
+    guion = [[_llamada("clic", x=400, y=300, objetivo="Emitir recibo", cambia_datos=False)], FIN]
+    esc, modelos = _correr(guion, bajo_el_punto="Emitir recibo")
+    assert esc.clics == [(400, 300)] and modelos.revisiones == 1
