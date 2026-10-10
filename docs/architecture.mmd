@@ -1,34 +1,34 @@
 flowchart LR
-  G([Grader]) -->|"POST /tasks<br/>task + desktop"| API
+  G([Evaluador]) -->|"POST /tasks<br/>tarea + escritorio"| API
   API -->|"GET /tasks/{id}<br/>estado + resumen"| G
 
-  subgraph SVC["Agent service · FastAPI on Railway, always on"]
-    API["Entrypoint<br/>Bearer token<br/>task_id in under 2 s"]
-    STORE[("Task store")]
+  subgraph SVC["Servicio del agente · FastAPI en Railway, siempre encendido"]
+    API["Entrypoint<br/>token Bearer<br/>task_id en menos de 2 s"]
+    STORE[("Registro de tareas")]
     API <--> STORE
 
-    subgraph RUN["Task runner · one asyncio task per request"]
-      PLAN["Planner · Sonnet 5.5<br/>goal, entities, risks:<br/>ambiguous, impossible,<br/>dangerous?"]
-      EXEC["Executor · Haiku 5.5<br/>reads the screen,<br/>proposes ONE action"]
-      VER["Verifier · code<br/>did the screen change?<br/>4:30 limit, steps, cost cap,<br/>stuck detector"]
-      ESC["Escalation · Sonnet 5.5<br/>after 2 no-effect actions"]
-      JUDGE["Judge · Sonnet 5.5<br/>final screen + action log:<br/>terminada or fallida"]
-      FMT["Formatter · code<br/>respuesta line,<br/>secret scrub"]
+    subgraph RUN["Ejecutor de tareas · una tarea asyncio por petición"]
+      PLAN["Planificador · Sonnet 5.5<br/>objetivo, entidades, riesgos:<br/>¿ambigua, imposible,<br/>peligrosa?"]
+      EXEC["Ejecutor · Haiku 5.5<br/>lee la pantalla y<br/>propone UNA acción"]
+      VER["Verificador · código<br/>¿cambió la pantalla?<br/>límite 4:30, pasos, tope de costo,<br/>detector de atasco"]
+      ESC["Escalamiento · Sonnet 5.5<br/>tras 2 acciones sin efecto"]
+      JUDGE["Juez · Sonnet 5.5<br/>pantalla final + registro:<br/>terminada o fallida"]
+      FMT["Formateador · código<br/>línea respuesta,<br/>borra secretos"]
       PLAN --> EXEC
-      EXEC -->|action| VER
-      VER -->|next step| EXEC
-      VER -->|no effect x2| ESC
+      EXEC -->|acción| VER
+      VER -->|siguiente paso| EXEC
+      VER -->|sin efecto x2| ESC
       ESC --> VER
-      VER -->|done or limit| JUDGE
+      VER -->|terminó o límite| JUDGE
       JUDGE --> FMT
     end
-    API -->|spawn| PLAN
+    API -->|lanza| PLAN
     FMT --> STORE
   end
 
-  VER <-->|"actions out (click held 150 ms,<br/>select-all before typing)<br/>stable screenshots in"| VNC["VNC client · code<br/>RFB over websocket"]
-  VNC <==> DESK[("Remote desktop<br/>kiosk browser +<br/>legacy app, 1280x800")]
-  RUN -.-> LOG[("Timestamped log<br/>screenshot per step,<br/>cost per call")]
+  VER <-->|"salen acciones (clic sostenido 150 ms,<br/>seleccionar todo antes de escribir)<br/>entran capturas estables"| VNC["Cliente VNC · código<br/>RFB sobre websocket"]
+  VNC <==> DESK[("Escritorio remoto<br/>navegador en kiosko +<br/>app heredada, 1280x800")]
+  RUN -.-> LOG[("Registro con hora<br/>captura por paso,<br/>costo por llamada")]
 
   classDef model fill:#fde8d0,stroke:#d9822b,color:#222;
   classDef code fill:#dcebfa,stroke:#3b7dd8,color:#222;

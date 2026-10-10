@@ -1,91 +1,94 @@
-# Screen agent for API-less systems: design
+# Agente que opera sistemas sin API: diseño
 
-Frontier Bogotá 2026 · Challenge 1 · Team design
+Frontier Bogotá 2026 · Reto 1 · Diseño del equipo
 
-## 1. Problem
+## 1. Problema
 
-Turn a natural-language request into **exactly** the right outcome inside a legacy business app the
-agent has never seen, using only pixels and mouse/keyboard over VNC, in under 5 minutes. "Right"
-means the expected record changes and nothing else: no extra edits, no duplicates, an honest final
-state (`fallida` when the task is ambiguous, impossible or dangerous) and a summary the grader can
-parse. The hard part is **generalizing to unknown UIs and knowing when to stop**.
+Convertir una petición en lenguaje natural en **exactamente** el resultado correcto dentro de una app
+de gestión que el agente nunca ha visto, usando solo píxeles, mouse y teclado por VNC, en menos de
+5 minutos. "Correcto" significa que cambian los registros esperados y nada más: sin ediciones de más,
+sin duplicados, con un estado final honesto (`fallida` si la tarea es ambigua, imposible o peligrosa)
+y un resumen que el evaluador pueda leer. Lo difícil es **generalizar a interfaces desconocidas y
+saber cuándo detenerse**.
 
-## 2. Assumptions
+## 2. Supuestos
 
-1. Evaluation apps are reached like the practice app (VNC, 1280×800) and are typical CRUD tools: menus,
-   lists, search/filters, forms, modals, confirmations, exports.
-2. The screen is the only source of truth. No DOM, no API, no network from the app.
-3. "Today" is the date shown by the app, not the server clock.
-4. The hidden set size is unknown, so the cost per task must stay far below the US$5 reserve (target ≤ US$0.10).
-5. The UI can change during the day, so nothing about a specific app is hardcoded.
+1. Las apps de evaluación se acceden igual que la de práctica (VNC, 1280×800) y son apps de gestión
+   típicas: menús, listas, búsqueda y filtros, formularios, modales, confirmaciones, exportes.
+2. La pantalla es la única fuente de verdad. No hay DOM, ni API, ni red desde la app.
+3. "Hoy" es la fecha que muestra la app, no el reloj del servidor.
+4. No sabemos cuántas tareas tiene el set oculto, así que el costo por tarea debe quedar muy por
+   debajo de la reserva de US$5 (meta ≤ US$0,10).
+5. La interfaz puede cambiar durante el día, así que no se programa nada específico de una app.
 
-## 3. Hard cases and how we handle them
+## 3. Casos difíciles y cómo los manejamos
 
-| Case | Handling |
+| Caso | Manejo |
 |---|---|
-| Ambiguous entity (two "Ana Torres") | Never modify. Report `fallida` naming the distinguishing data (IDs, documents) |
-| Impossible or dangerous request | `fallida` with the reason. Destructive actions outside the request are refused |
-| Questions (counts, totals) | Use the app's own filters and totals, then `respuesta: <number first>`; two values joined with `;` |
-| Duplicates | Search before creating; never resubmit a form without checking the list first |
-| Literal search (accents matter, partial matches) and paginated lists | Try spelling variants and page through or filter before concluding "not found" or counting |
-| Slow repaint, ignored fast clicks, text concatenation, blinking caret | Code waits until < 80 px change over 0.6 s (measured: ~1.5 s per action), holds clicks 150 ms, selects all before typing |
-| Running out of time | Hard stop at 4:30, report, and stop touching the desktop |
+| Entidad ambigua (dos "Ana Torres") | No modificar. Reportar `fallida` nombrando los datos que las distinguen (códigos, documentos) |
+| Petición imposible o peligrosa | `fallida` con la razón. Se rechazan acciones destructivas que la tarea no pide |
+| Preguntas (conteos, totales) | Usar los filtros y totales de la app; `respuesta: <número primero>`; dos datos separados por `;` |
+| Duplicados | Buscar antes de crear; nunca reenviar un formulario sin revisar la lista |
+| Búsqueda literal (tildes) y listas paginadas | Probar variantes y recorrer páginas o filtrar antes de concluir "no existe" o de contar |
+| Repintado lento, clics rápidos ignorados, texto que se concatena | Esperar pantalla estable (< 80 px en 0,6 s; medido ~1,5 s), clic de 150 ms, seleccionar todo antes de escribir |
+| Se acaba el tiempo | Corte a los 4:30, reporte y no volver a tocar el escritorio |
 
-## 4. Out of scope (and why)
+## 4. Fuera de alcance (y por qué)
 
-Persistent per-app memory across tasks (stale after a UI change, and a wrong memory is worse than
-none) · multi-app workflows · CAPTCHAs · fine-tuning a model (no time to collect data that generalizes).
+Memoria persistente por app (queda vieja si la interfaz cambia; una memoria equivocada es peor que
+ninguna) · flujos entre varias apps · CAPTCHAs · ajustar un modelo (no hay datos que generalicen).
 
-## 5. Architecture
+## 5. Arquitectura
 
 ```mermaid
 flowchart LR
-  G[Grader] -->|POST /tasks| A[Entrypoint<br/>FastAPI]
-  A --> P[Planner<br/>Sonnet 5.5]
-  P --> E[Executor<br/>Haiku 5.5]
-  E -->|click, type, key| V[VNC client<br/>RFB]
-  V <--> D[(Remote<br/>desktop)]
-  V -->|stable screenshot| C[Verifier<br/>code]
-  C -->|next step| E
-  C -->|done or limit| J[Judge<br/>Sonnet 5.5]
-  J --> F[Formatter<br/>code]
+  G[Evaluador] -->|POST /tasks| A[Entrypoint<br/>FastAPI]
+  A --> P[Planificador<br/>Sonnet 5.5]
+  P --> E[Ejecutor<br/>Haiku 5.5]
+  E -->|clic, escribir, tecla| V[Cliente VNC<br/>RFB]
+  V <--> D[(Escritorio<br/>remoto)]
+  V -->|captura estable| C[Verificador<br/>código]
+  C -->|siguiente paso| E
+  C -->|terminó o límite| J[Juez<br/>Sonnet 5.5]
+  J --> F[Formateador<br/>código]
   F -->|GET /tasks/id| G
 ```
 
-Code owns everything that must be exact; models own what needs judgment. **Planner** reads the task
-and first screen, flags ambiguity and danger. **Executor** proposes one action per screen.
-**Verifier** checks that the action changed the screen and enforces limits. **Judge** sees the final
-screen and action log and decides `terminada`/`fallida`. **Formatter** guarantees the grader format
-and removes secrets.
+El código se encarga de todo lo que debe ser exacto; los modelos, de lo que requiere juicio. El
+**Planificador** lee la tarea y la primera pantalla, y marca ambigüedad o peligro. El **Ejecutor**
+propone una acción por pantalla. El **Verificador** comprueba que la acción cambió la pantalla y aplica
+los límites. El **Juez** ve la pantalla final y el registro de acciones y decide `terminada` o
+`fallida`. El **Formateador** garantiza el formato del evaluador y borra secretos.
 
-## 6. Decisions
+## 6. Decisiones
 
-| Decision | Rejected alternative | Why |
+| Decisión | Alternativa descartada | Por qué |
 |---|---|---|
-| Vision model reads raw screenshots | OCR + text-only model | OCR loses layout (which label owns which input, icons, checkboxes). OCR stays as an optional hint if misreads dominate failures |
-| Haiku 5.5 executes each step (est. 25 steps: ~US$0.06/task incl. judge, ~83 tasks per US$5) | Sonnet 5.5 as executor (~US$0.31/task, ~16 tasks per US$5) | Sonnet is about 20× the price and slower per step, so fewer steps fit in 5 min. A measured bake-off decides |
-| Sonnet only where judgment matters (plan, final verdict, escalation) | One cheap model for everything | False success and wrong refusals are the costliest errors; two strong calls per task are cheap insurance |
-| Model proposes, code verifies | Trust the model's own report | Grader penalizes false success; screen-diff and limits catch silent failures |
-| Direct RFB client over websocket | Headless browser running noVNC | Fewer layers and exact click timing. noVNC stays as fallback |
-| Fresh exploration per task | Persistent memory per app | Robust to UI changes; correctness beats speed |
-| Railway, always on (Docker) | Laptop + tunnel | The contract requires uptime through demo day |
+| Un modelo de visión lee capturas crudas | OCR + modelo solo de texto | El OCR pierde la disposición (qué etiqueta es de qué campo, íconos, casillas). Queda como pista si dominan los errores de lectura |
+| Haiku 5.5 ejecuta cada paso (est. 25 pasos: ~US$0,06 por tarea con el juez, ~83 tareas con US$5) | Sonnet 5.5 como ejecutor (~US$0,31 por tarea, ~16 tareas con US$5) | Sonnet cuesta ~20 veces más y es más lento por paso: caben menos pasos en 5 min. Lo decide un bake-off medido |
+| Sonnet solo donde hay juicio (plan, veredicto, escalamiento) | Un modelo barato para todo | El falso éxito y los rechazos equivocados son los errores más caros; dos llamadas fuertes son un seguro barato |
+| El modelo propone, el código verifica | Creerle al reporte del modelo | El evaluador castiga el falso éxito; comparar pantallas y los límites atrapan fallas silenciosas |
+| Cliente RFB propio sobre websocket | Navegador sin cabeza con noVNC | Menos capas y control exacto del tiempo de cada clic. noVNC queda de respaldo |
+| Exploración nueva en cada tarea | Memoria persistente por app | Resiste cambios de interfaz; la exactitud pesa más que la velocidad |
+| Railway, siempre encendido (Docker) | Portátil + túnel | El contrato exige disponibilidad hasta el demo day |
 
-## 7. How we measure (before building)
+## 7. Cómo medimos (antes de construir)
 
-- **One command** `uv run python -m evals.run` resets the desktop, sends each case to our entrypoint,
-  calls `/__check`, verifies `estado` and summary format, and prints success rate, cost per task,
-  latency and failure type.
-- **Cases:** the 5 given + ~15 of ours (rephrasings and new tasks per type: create, edit, question,
-  export, ambiguous, impossible, destructive, relative dates, two-value answers).
-- **Generalization:** a **holdout app** with another domain and layout that the agent never sees during
-  tuning, plus a check that fails if practice-app names appear in agent code or prompts.
-- **Targets:** ≥ 80% own set, ≥ 60% holdout, 0 destructive actions, ≤ US$0.10 and p95 < 4 min per task.
-  The 3 hidden-set runs are milestones: skeleton, after the incident, final.
+- **Un comando** `uv run python -m evals.run` resetea el escritorio, envía cada caso a nuestro
+  entrypoint, llama `/__check`, revisa `estado` y el formato del resumen, y muestra tasa de éxito,
+  costo por tarea, latencia y tipo de falla.
+- **Casos:** los 5 entregados + ~15 propios (redacciones distintas y tareas nuevas de cada tipo: crear,
+  editar, preguntar, exportar, ambigua, imposible, destructiva, fechas relativas, dos datos).
+- **Generalización:** una **app de holdout** de otro dominio y otra disposición que el agente nunca ve
+  mientras se ajusta, más un chequeo que falla si aparecen nombres de la app de práctica en el código
+  o los prompts del agente.
+- **Metas:** ≥ 80% en el set propio, ≥ 60% en el holdout, 0 acciones destructivas, ≤ US$0,10 y p95 < 4 min
+  por tarea. Las 3 corridas del set oculto son hitos: esqueleto, después del incidente y final.
 
-## 8. Risks and monitoring
+## 8. Riesgos y monitoreo
 
-| Risk | Detection | Response |
+| Riesgo | Detección | Respuesta |
 |---|---|---|
-| UI changes mid-day (15:30) | "No effect" and "stuck" alarms; eval baseline at 15:00 and rerun | Per-case diff shows what broke; fix and document in README |
-| Misclicks by the small model | Repeated no-effect actions | Escalate that step to Sonnet after 2 failures |
-| Budget overrun | Cost tracked per call | Per-task cost cap; stop and report |
+| La interfaz cambia (15:30) | Alarmas "sin efecto" y "atascado"; eval base 15:00 y nueva corrida | El diff por caso muestra qué se rompió; se arregla y se documenta |
+| Clics errados del modelo pequeño | Acciones repetidas sin efecto | Escalar ese paso a Sonnet después de 2 fallas |
+| Sobrecosto | Costo registrado por llamada | Tope de costo por tarea; detenerse y reportar |
