@@ -38,6 +38,11 @@ aplicación: abre los candidatos, sus pestañas y el historial o registro de cam
 una pista (quién, cuándo, qué valor) que solo uno cumple.
 - Si después de buscar varios registros siguen coincidiendo y no hay forma de distinguirlos, NO cambies nada: \
 termina con estado "fallida" y nombra el identificador o documento de cada candidato.
+- Una pista de la tarea que la aplicación no muestra en ningún lado (quién hizo algo, por qué lo hizo) no \
+bloquea: si lo que sí se ve deja un único registro posible, ese es el registro y sigues con la tarea. Solo es \
+ambigüedad cuando varios registros cumplen lo que se ve.
+- Si la tarea depende de una preferencia o condición de la persona (lo que le sirve, lo que pidió, cuándo \
+puede), búscala en su ficha: notas, observaciones, historial. Con eso decides; no termines por no saberlo.
 - Si la tarea tiene varias partes, hazlas todas. No termines con una parte aplicada y otra sin intentar.
 - Antes de crear un registro, búscalo por su identificador único (documento, número de identificación o código) SOLO, sin \
 combinarlo con el nombre en el mismo filtro. Si ya hay un registro con ese identificador, no crees otro: \
