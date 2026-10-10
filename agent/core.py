@@ -4,6 +4,7 @@ Flujo: conectar → Comprensión (TaskSpec) → memoria (huella, notas, receta) 
 compuertas y verificación → Reporte. `memory` puede ser None y el núcleo funciona igual.
 """
 
+import asyncio
 import os
 from pathlib import Path
 
@@ -30,9 +31,24 @@ async def run_task(
     resultado = TaskResult("fallida", "No se alcanzó a operar el escritorio.")
     operador: Operador | None = None
     try:
-        await driver.connect(url, password)
-        # Un escritorio recién reiniciado puede seguir cargando: se espera a que la pantalla se aquiete.
-        await driver.vnc.asentar(quieto=0.7, esperar_cambio=1.5, maximo=6.0)
+        for intento in range(3):
+            try:
+                await driver.connect(url, password)
+                # Un escritorio recién reiniciado puede seguir cargando: se espera a que la pantalla se aquiete.
+                await driver.vnc.asentar(quieto=0.7, esperar_cambio=1.5, maximo=6.0)
+                break
+            except Exception as error:
+                # Suite 18:27: el escritorio recién reiniciado cortó la primera conexión a los 5 s y la tarea
+                # se perdió sin empezar. Se reintenta dos veces antes de darla por perdida.
+                if intento == 2:
+                    raise
+                traza.evento(accion="reconexion_inicial", tipo=type(error).__name__, intento=intento + 1)
+                try:
+                    await driver.close()
+                except Exception:
+                    pass
+                driver = DriverRFB()
+                await asyncio.sleep(2)
         resultado.spec = await comprender(tarea, modelos)
         traza.evento(accion="spec", spec=resultado.spec)
 
