@@ -244,6 +244,19 @@ class Escritorio:
                 return arriba + medio_alto
         return None
 
+    async def _ubicar_sin_prisa(self, plantilla: Image.Image, x: int, medio_alto: int, intentos: int = 4) -> int | None:
+        """Como `_ubicar`, pero no da el control por perdido con una sola captura.
+
+        La pantalla puede estar a medio dibujar (un resaltado que todavía no se borra) y el control
+        seguir ahí: concluir que no está cortaría la lectura y el conteo saldría corto sin avisar.
+        """
+        for _ in range(intentos):
+            donde = self._ubicar(plantilla, x, medio_alto)
+            if donde is not None:
+                return donde
+            await self.vnc.asentar(quieto=0.3, esperar_cambio=0.6, maximo=1.5)
+        return None
+
     async def leer_lista(self, siguiente: tuple[int, int] | None, max_paginas: int = 40) -> tuple[Tabla, str]:
         """Lee la tabla en pantalla recorriendo sus páginas con el control de página siguiente.
 
@@ -263,7 +276,7 @@ class Escritorio:
         plantilla = self.vnc.captura().crop((x - medio_ancho, y - medio_alto, x + medio_ancho, y + medio_alto))
         motivo = f"se alcanzó el máximo de {max_paginas} páginas"
         for _ in range(max_paginas - 1):
-            donde = self._ubicar(plantilla, x, medio_alto)
+            donde = await self._ubicar_sin_prisa(plantilla, x, medio_alto)
             if donde is None:
                 motivo = "el control de página siguiente ya no está activo"
                 break

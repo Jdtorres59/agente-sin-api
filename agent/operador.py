@@ -442,7 +442,8 @@ class Operador:
                 return f"no se encontraron filas de tabla ({motivo}). Usa leer_pantalla."
             return (
                 f"{len(self.tabla.filas)} filas en {self.tabla.paginas} página(s); se detuvo porque {motivo}. "
-                f"La pantalla quedó en la última página.\n{self.tabla.como_texto()}"
+                "La pantalla quedó en la última página leída: si en la captura el control de página siguiente "
+                f"sigue activo, la lectura quedó incompleta y debes repetirla.\n{self.tabla.como_texto()}"
             )
         if nombre == "contar":
             if self.tabla is None:

@@ -112,7 +112,8 @@ demuestra el estado que reporta.
 - Para "terminada" en una tarea que cambia datos: debe haber evidencia leída DESPUÉS del cambio de que el \
 registro quedó con los valores exactos, y de que se hizo una sola vez.
 - Para "terminada" en una pregunta: la respuesta debe salir de texto leído, cubrir todas las páginas y \
-responder exactamente lo que se pregunta.
+responder exactamente lo que se pregunta. Si la pantalla actual muestra una lista con el control de página \
+siguiente todavía activo, la lectura no cubrió todas las páginas.
 - Para "fallida": la razón debe ser real según lo observado y nombrar los datos concretos.
 - No exijas un tipo de evidencia que la aplicación no ofrece: basta una confirmación visible o que el \
 registro, la lista o un historial de la aplicación muestre el resultado.
