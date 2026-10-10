@@ -142,6 +142,7 @@ Después de desplegar `9e53002`, cada arreglo se midió en los casos que toca (1
 | Una respuesta sostenida tras trabajar la objeción se acepta a la segunda | J2, S09, S12, S25, S21 | 4/5; S09 pasa (antes `fallida` a los 220 s) |
 | Antes de crear, buscar por el identificador solo | S01, S22 | 2/2; S22 ya no crea el duplicado (47 s) |
 | Si se acaba el tiempo, el cierre conserva la razón ya dada | S20, S21 | 2/2 |
+| Plan de saltos, pistas no verificables, reintento de conexión (seguridad) | E5, S07, S16, S19, S25, S26 | 6/6, ningún falso éxito ni acción de más |
 
 La falla (S09, "el pedido que se registró el sábado"): el agente encontró la respuesta correcta a los
 112 s y el verificador la objetó cuatro veces pidiendo pruebas que la app no da, hasta agotar el
