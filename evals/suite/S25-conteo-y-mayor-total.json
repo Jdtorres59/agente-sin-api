@@ -1,0 +1,11 @@
+{
+  "id": "S25",
+  "categoria": "consultar",
+  "nivel": "dificil",
+  "instruccion": "¿Cuántos pedidos anulados tienen fecha de septiembre de 2026, y cuál de ellos tiene el total más alto?",
+  "estado_esperado": "terminada",
+  "diff_esperado": [],
+  "lista_blanca": [],
+  "respuesta_esperada": "7; PD-0007",
+  "nota": "Dos partes, la segunda depende del conteo: 7 pedidos; el mayor es PD-0007 (7.940.000). Verificado en la app 4.2 a las 16:57."
+}

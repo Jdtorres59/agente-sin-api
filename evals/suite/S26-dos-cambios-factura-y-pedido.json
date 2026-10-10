@@ -1,0 +1,25 @@
+{
+  "id": "S26",
+  "categoria": "estado",
+  "nivel": "dificil",
+  "instruccion": "Marca como pagada la factura FV-10004 y anula el pedido PD-0233.",
+  "estado_esperado": "terminada",
+  "diff_esperado": [
+    {
+      "entidad": "facturas",
+      "id": "FV-10004",
+      "campo": "estado",
+      "accion": "update",
+      "valor": "Pagada"
+    },
+    {
+      "entidad": "pedidos",
+      "id": "PD-0233",
+      "campo": "estado",
+      "accion": "update",
+      "valor": "Anulado"
+    }
+  ],
+  "lista_blanca": [],
+  "nota": "Dos cambios en pantallas distintas: no puede cerrar con uno solo. Verificado en la app 4.2 a las 16:57."
+}
