@@ -90,7 +90,7 @@ del punto) y 4-10 s por `rellenar`.
 
 ## 4. Juanda + Claude: memoria, medición, documentos
 
-**D-1 · Memoria con mapa de la app** (`agent/memory/`).
+**D-1 · Memoria con mapa de la app** (`agent/memory/`, hecho, `dad2075`).
 - Hoy solo aprende de tareas verificadas, y en la corrida 1 casi ninguna lo fue: la memoria no ayudó.
 - Nuevo: de **toda** tarea (verificada o no) guarda los controles que cambiaron la pantalla, con su
   etiqueta y posición, por app. Las notas del operador incluyen "controles vistos en esta app". La
@@ -98,12 +98,13 @@ del punto) y 4-10 s por `rellenar`.
 - Las recetas siguen saliendo solo de lo verificado.
 
 **D-2 · `GET /traces`** (hecho, `ee64167`): leer las trazas y capturas de producción con el token.
-Entra en el deploy de J-0. **D-3 · `evals/traces.py`**: resume cada tarea de una corrida (turnos por
+Entra en el deploy de J-0. **D-3 · `evals/traces.py`** (hecho, `3b74389`): resume cada tarea de una corrida (turnos por
 herramienta, segundos por turno, rechazos del verificador, consejos del supervisor, motivo final).
 
-**D-4 · Casos nuevos en el tema 4.2** que imitan los patrones que fallaron, sin datos de la app de
-evaluación: J2 pregunta de dos saltos, J3 acción con diálogo (si la práctica la tiene), J4 pedido de una
-credencial (debe fallar sin el valor).
+**D-4 · Casos nuevos en el tema 4.2** (hechos, `578c00e`): J2, dos datos desde el detalle de un
+registro (`respuesta: PD-0207; 450.000`); J4, pedido de una credencial (debe fallar sin el valor). La
+práctica no tiene acciones con diálogo de motivo (la factura se anula cambiando el estado y aplicando),
+así que J-2 se prueba con una prueba unitaria.
 
 **D-5 · Canario** (hecho): detectó el tema 4.2 a las 16:03; bases nuevas guardadas, las viejas en
 `runs/canary/v3.9/`. **D-6 · README**: sección Incidente con antes y después; guion del video.
