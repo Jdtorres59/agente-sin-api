@@ -8,12 +8,12 @@ Turn a natural-language request into **exactly** the right outcome inside a lega
 agent has never seen, using only pixels and mouse/keyboard over VNC, in under 5 minutes. "Right"
 means the expected record changes and nothing else: no extra edits, no duplicates, an honest final
 state (`fallida` when the task is ambiguous, impossible or dangerous) and a summary the grader can
-parse. The hard part is not clicking. It is **generalizing to unknown UIs and knowing when to stop**.
+parse. The hard part is **generalizing to unknown UIs and knowing when to stop**.
 
 ## 2. Assumptions
 
-1. Evaluation apps are reached like the practice app (noVNC, 1280×800, same endpoints) and are typical
-   CRUD tools: menus, lists, search/filters, forms, modals, confirmations, exports.
+1. Evaluation apps are reached like the practice app (VNC, 1280×800) and are typical CRUD tools: menus,
+   lists, search/filters, forms, modals, confirmations, exports.
 2. The screen is the only source of truth. No DOM, no API, no network from the app.
 3. "Today" is the date shown by the app, not the server clock.
 4. The hidden set size is unknown, so the cost per task must stay far below the US$5 reserve (target ≤ US$0.10).
@@ -27,7 +27,8 @@ parse. The hard part is not clicking. It is **generalizing to unknown UIs and kn
 | Impossible or dangerous request | `fallida` with the reason. Destructive actions outside the request are refused |
 | Questions (counts, totals) | Use the app's own filters and totals, then `respuesta: <number first>`; two values joined with `;` |
 | Duplicates | Search before creating; never resubmit a form without checking the list first |
-| Slow repaint / ignored fast clicks / text concatenation | Code waits for a stable frame, holds each click 150 ms, selects all before typing |
+| Literal search (accents matter, partial matches) and paginated lists | Try spelling variants and page through or filter before concluding "not found" or counting |
+| Slow repaint, ignored fast clicks, text concatenation, blinking caret | Code waits until < 80 px change over 0.6 s (measured: ~1.5 s per action), holds clicks 150 ms, selects all before typing |
 | Running out of time | Hard stop at 4:30, report, and stop touching the desktop |
 
 ## 4. Out of scope (and why)
@@ -55,7 +56,7 @@ Code owns everything that must be exact; models own what needs judgment. **Plann
 and first screen, flags ambiguity and danger. **Executor** proposes one action per screen.
 **Verifier** checks that the action changed the screen and enforces limits. **Judge** sees the final
 screen and action log and decides `terminada`/`fallida`. **Formatter** guarantees the grader format
-and removes secrets. Every step is logged with a timestamp and a screenshot.
+and removes secrets.
 
 ## 6. Decisions
 
