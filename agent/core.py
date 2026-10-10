@@ -21,7 +21,7 @@ async def run_task(
 ) -> TaskResult:
     traza = Traza(trace_dir)
     traza.evento(accion="inicio", tarea=tarea)
-    modelos = Modelos()
+    modelos = Modelos(limite=deadline)  # los reintentos respetan el reloj de la tarea
     driver = DriverRFB()
     secretos = [password] + [
         os.environ.get(nombre, "")

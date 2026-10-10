@@ -43,3 +43,23 @@ def test_gate_pattern_matches_action_verbs_but_not_lookalikes():
         assert patron.search(nombre), nombre
     for nombre in ("Aplicar filtro", "Datos generales", "Actualizar lista", "Envíos", "Importe total", "Buscar", "Nuevo registro"):
         assert not patron.search(nombre), nombre
+
+
+def test_point_inside_a_bordered_control_is_recognised():
+    from agent.escritorio import dentro_de_control
+
+    imagen = _dos_botones()
+    assert dentro_de_control(imagen, 72, 41)  # centro del primer botón
+    assert dentro_de_control(imagen, 177, 41)  # centro del segundo
+    assert not dentro_de_control(imagen, 260, 41)  # fondo liso a la derecha
+    assert not dentro_de_control(imagen, 72, 70)  # debajo de los botones
+
+
+def test_a_menu_bar_item_is_not_a_bordered_control():
+    from agent.escritorio import dentro_de_control
+
+    imagen = Image.new("RGB", (400, 100), (230, 233, 240))
+    dibujo = ImageDraw.Draw(imagen)
+    dibujo.rectangle((0, 0, 400, 30), fill=(31, 58, 104))  # barra de título
+    dibujo.line((0, 60, 400, 60), fill=(150, 150, 150))  # línea bajo la barra de menús
+    assert not dentro_de_control(imagen, 120, 45)  # hay borde arriba y abajo, pero no a los lados

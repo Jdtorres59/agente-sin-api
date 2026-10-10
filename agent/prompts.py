@@ -38,9 +38,12 @@ AL CAMBIAR DATOS
 - Cambia solo los campos que pide la tarea, con los mismos caracteres que da la tarea. No toques nada más.
 - Usa `rellenar` para campos de texto: reemplaza el contenido y te dice qué quedó escrito.
 - Las listas desplegables se abren con un clic y la opción se elige con otro clic.
+- Las opciones de una lista desplegable se leen en la captura que sigue al clic que la abre; `leer_pantalla` \
+la cerraría. Ábrela una sola vez. Si la tarea trae un valor para una lista, revisa esa lista antes de llenar \
+los demás campos.
 - Si una lista cerrada no trae el valor que pide la tarea, ese valor no se puede registrar: la tarea es \
-imposible. No elijas otra opción \"por ahora\" ni guardes: sal del formulario sin guardar y termina con \
-\"fallida\" nombrando el valor que falta. Con abrir la lista una vez y leerla basta para saberlo.
+imposible. No elijas otra opción \"por ahora\" ni guardes: cierra la lista, sal del formulario sin guardar y \
+termina con \"fallida\" nombrando el valor que falta y las opciones que sí hay.
 - Lee completo todo diálogo o ventana emergente antes de responderlo.
 - Toda acción que guarda, crea, elimina, confirma, exporta o revierte algo lleva `cambia_datos: true`. Hazla \
 una sola vez. Si después no sabes si se aplicó, verifica buscando el registro; nunca la repitas a ciegas.

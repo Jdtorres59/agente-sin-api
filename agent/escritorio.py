@@ -54,6 +54,28 @@ def cerca_de_borde(imagen: Image.Image, x: int, y: int, margen: int = 5, largo: 
     return False
 
 
+def dentro_de_control(imagen: Image.Image, x: int, y: int, alto: int = 24, ancho: int = 160, contraste: int = 28) -> bool:
+    """True si (x, y) cae dentro de un control con borde: un botón, un campo o una lista cerrada.
+
+    Busca un borde recto arriba, abajo, a la izquierda y a la derecha del punto, cerca de él. Los
+    menús, los enlaces y las opciones de una lista no tienen esa caja alrededor.
+    """
+    if not (0 <= x < imagen.width and 0 <= y < imagen.height):
+        return False
+    izquierda, arriba = max(0, x - ancho), max(0, y - alto)
+    recorte = imagen.crop((izquierda, arriba, min(imagen.width, x + ancho + 1), min(imagen.height, y + alto + 1)))
+    gris = np.asarray(recorte.convert("L"), dtype=np.int16)
+    cx, cy = x - izquierda, y - arriba
+    filas = np.abs(np.diff(gris, axis=0)) > contraste  # bordes horizontales
+    columnas = np.abs(np.diff(gris, axis=1)) > contraste  # bordes verticales
+    return (
+        any(_racha(filas[i, :], cx) >= 18 for i in range(0, max(0, cy - 2)))
+        and any(_racha(filas[i, :], cx) >= 18 for i in range(cy + 2, filas.shape[0]))
+        and any(_racha(columnas[:, j], cy) >= 14 for j in range(0, max(0, cx - 2)))
+        and any(_racha(columnas[:, j], cy) >= 14 for j in range(cx + 2, columnas.shape[1]))
+    )
+
+
 class Escritorio:
     def __init__(self, vnc: ClienteRFB):
         self.vnc = vnc

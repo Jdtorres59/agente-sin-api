@@ -4,15 +4,21 @@ import asyncio
 import json
 import time
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from agent import prompts
 from agent.operador import Operador
 
 
 class FakeVnc:
+    """Una pantalla con dos botones vecinos (x 14-130 y x 136-218, a la altura y 185) y nada más."""
+
     def captura(self) -> Image.Image:
-        return Image.new("RGB", (640, 480), "white")
+        imagen = Image.new("RGB", (640, 480), "white")
+        dibujo = ImageDraw.Draw(imagen)
+        for izquierda, derecha in ((14, 130), (136, 218)):
+            dibujo.rectangle((izquierda, 174, derecha, 196), fill=(240, 240, 240), outline=(120, 120, 120))
+        return imagen
 
 
 class FakeEsc:
@@ -47,12 +53,15 @@ class FakeModelos:
     def __init__(self, guion: list[list[dict]], bajo_el_punto: str):
         self.guion, self.bajo_el_punto = list(guion), bajo_el_punto
         self.revisiones = 0
+        self.comprobaciones = 0
 
     async def chat(self, modelo, mensajes, herramientas=None, **extra):
         if herramientas:
+            self.ultimo_usuario = [m for m in mensajes if m["role"] == "user"][-1]["content"]
             return {"content": "", "tool_calls": self.guion.pop(0)}
         sistema = mensajes[0]["content"]
         if sistema == prompts.BAJO_EL_PUNTO:
+            self.comprobaciones += 1
             return {"content": self.bajo_el_punto}
         if sistema == prompts.REVISOR_GUARDADO:
             self.revisiones += 1
@@ -94,3 +103,18 @@ def test_search_flagged_as_a_change_skips_the_expensive_review():
     guion = [[_llamada("clic", x=300, y=130, objetivo="botón Buscar", cambia_datos=True)], FIN]
     esc, modelos = _correr(guion, bajo_el_punto="Buscar")
     assert esc.clics == [(300, 130)] and modelos.revisiones == 0
+
+
+def test_click_outside_any_bordered_control_is_not_point_checked():
+    guion = [[_llamada("clic", x=400, y=300, objetivo="opción de menú", cambia_datos=False)], FIN]
+    esc, modelos = _correr(guion, bajo_el_punto="Exportar")
+    assert esc.clics == [(400, 300)] and modelos.comprobaciones == 0
+
+
+def test_a_reply_without_tool_calls_is_just_a_turn_that_gets_a_reminder():
+    """Tras el respaldo con el otro modelo la respuesta puede venir en texto: el operador no se cae."""
+    esc, modelos = FakeEsc(), FakeModelos([[], FIN], bajo_el_punto="ninguno")
+    operador = Operador("Abre el formulario de alta.", esc, modelos, FakeTraza(), limite=time.monotonic() + 200)
+    cierre = asyncio.run(operador.correr())
+    assert modelos.ultimo_usuario == "Responde usando una herramienta."
+    assert cierre.estado == "fallida" and cierre.hechos == "No hice cambios." and cierre.verificado

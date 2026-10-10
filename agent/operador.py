@@ -14,7 +14,7 @@ from PIL import Image, ImageChops, ImageDraw
 
 from . import prompts
 from .contracts import Step
-from .escritorio import Escritorio, cerca_de_borde
+from .escritorio import Escritorio, cerca_de_borde, dentro_de_control
 from .modelos import ErrorModelo, Modelos, imagen_a_url
 from .recuperacion import Diario, recuperar
 from .tablas import Tabla
@@ -90,7 +90,8 @@ HERRAMIENTAS = [
     ),
     _herramienta(
         "leer_pantalla",
-        "Devuelve el texto exacto de toda la pantalla. Cierra menús abiertos y quita el foco; no cambia datos. "
+        "Devuelve el texto exacto de toda la pantalla. Cierra menús y listas desplegables abiertos y quita el "
+        "foco; no cambia datos. No la uses para leer un menú o una lista abierta: léelos en la captura. "
         "No incluye el contenido de los campos de un formulario: para eso usa leer_campo.",
         {},
         [],
@@ -325,7 +326,9 @@ class Operador:
             marcada_por_nombre = True
         else:
             marcada_por_nombre = False
-        if nombre == "clic":
+        # La comprobación del punto cuesta ~2 s: se hace donde un error cambia datos, es decir en las
+        # acciones de cambio y en los clics que caen dentro de un control con borde (un botón).
+        if nombre == "clic" and (a.get("cambia_datos") or dentro_de_control(self.esc.vnc.captura(), a["x"], a["y"])):
             motivo = await self._punto_equivocado(a)
             if motivo:
                 return motivo
