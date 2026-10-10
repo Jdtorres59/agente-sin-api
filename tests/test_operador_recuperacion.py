@@ -96,8 +96,7 @@ def test_a_wrongly_saved_value_is_restored_to_the_exact_previous_one():
             _llamada("rellenar", x=CAMPO[0], y=CAMPO[1], texto=PEDIDO, campo="Dirección"),
             _llamada("clic", x=GUARDAR[0], y=GUARDAR[1], objetivo="Guardar", cambia_datos=True),
         ],
-        [_llamada("terminar", estado="terminada", hechos="Cambié la dirección y guardé.")],
-        [_llamada("terminar", estado="terminada", hechos="Cambié la dirección y guardé.")],
+        *[[_llamada("terminar", estado="terminada", hechos="Cambié la dirección y guardé.")] for _ in range(6)],
     ]
     operador = Operador(
         f"Corrige la dirección: ahora es {PEDIDO}.", esc, FakeModelos(guion), traza, limite=time.monotonic() + 200

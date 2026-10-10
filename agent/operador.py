@@ -38,6 +38,8 @@ _PARECE_CAMBIO = re.compile(
 # Controles que solo navegan. Si el operador los marca como cambio de datos, no hace falta revisarlos.
 _SOLO_NAVEGA = re.compile(r"\b(buscar|filtrar|siguiente|anterior|volver|search|filter|next|previous|back)\b", re.IGNORECASE)
 MAX_CONSEJOS = 3  # consultas al supervisor por atasco, por tarea
+MAX_OBJECIONES = 4  # veces que el verificador puede devolver un cierre mientras quede tiempo
+MAX_CIERRES_SIN_TRABAJO = 2  # cierres devueltos sin consultar al verificador por no haber hecho nada
 MAX_RECHAZOS_IGUALES = 3  # veces que el revisor rechaza la misma acción antes de dejar de consultarlo
 _NEGADO = re.compile(r"\b(sin|no|without|not)\s+\w+", re.IGNORECASE)
 # «Aplicar» guarda un formulario, pero «Aplicar filtro» solo filtra.
@@ -699,7 +701,9 @@ class Operador:
         if self.aviso_inicial:
             inicio += f"\n\n{self.aviso_inicial}"
         mensajes = [{"role": "system", "content": sistema}, await self._observacion(inicio, 1)]
-        rechazos = errores_modelo = 0
+        rechazos = errores_modelo = devueltos = 0
+        desde_objecion = 0  # acciones ejecutadas desde la última objeción del verificador
+        ultima_objecion = ""
 
         for paso in range(1, MAX_PASOS + 1):
             self.paso = paso
@@ -756,6 +760,8 @@ class Operador:
                     hubo_clic = hubo_clic or nombre == "clic"
                     if nombre in ("clic", "tecla", "escribir", "rueda"):
                         self.sin_efecto = self.sin_efecto + 1 if "NO cambió" in resultado else 0
+                    if not resultado.startswith(("NO ejecutada", "no ejecutada", "argumentos inválidos")):
+                        desde_objecion += 1
                     self.bitacora.append(f"{paso}. {nombre} {json.dumps(args, ensure_ascii=False)} → {_abreviar(resultado)}")
                 self.traza.evento(paso=paso, accion=nombre, args=args, resultado=resultado[:3000])
                 resultados.append({"role": "tool", "tool_call_id": llamada["id"], "content": resultado})
@@ -786,6 +792,21 @@ class Operador:
                 mensajes.append(await self._observacion(aviso, paso + 1))
                 continue
 
+            queda_tiempo = self._quedan() >= RESERVA_SEGUNDOS + 20
+            if rechazos and not desde_objecion and devueltos < MAX_CIERRES_SIN_TRABAJO and queda_tiempo:
+                # Volvió a cerrar sin hacer nada de lo que el verificador dijo que faltaba: el cierre no
+                # se consulta otra vez (diría lo mismo) y la tarea sigue abierta.
+                devueltos += 1
+                self.traza.evento(paso=paso, accion="cierre_devuelto", estado=cierre.estado, veces=devueltos)
+                mensajes.append(
+                    await self._observacion(
+                        "Ese cierre NO se acepta: no has hecho nada desde la objeción del verificador, que "
+                        f"sigue en pie: {ultima_objecion}\nHaz ahora lo que falta, paso a paso. Solo si lo "
+                        "intentas y la aplicación no lo permite puedes terminar con «fallida», diciendo qué probaste.",
+                        paso + 1,
+                    )
+                )
+                continue
             cierre.pasos, cierre.confirmaciones, cierre.bitacora = paso, self.confirmaciones, self.bitacora
             conforme, problema = await self._verificar(cierre)
             self.traza.evento(paso=paso, accion="verificar", conforme=conforme, problema=problema)
@@ -795,19 +816,27 @@ class Operador:
             rechazos += 1
             if problema:
                 self.objeciones.append(problema)
-            if rechazos >= 2 or self._quedan() < RESERVA_SEGUNDOS + 20:
+            if rechazos >= MAX_OBJECIONES or self._quedan() < RESERVA_SEGUNDOS + 20:
                 if cierre.estado == "terminada":
                     cierre.estado = "fallida"
                     cierre.razon = f"No se pudo verificar el resultado: {problema}"
                 return cierre
             self.bitacora.append(f"{paso}. verificador: no conforme → {problema}")
-            mensajes.append(
-                await self._observacion(
-                    f"El verificador NO aceptó el cierre: {problema}\nReúne la evidencia que falta o corrige, "
-                    "sin repetir cambios ya aplicados, y vuelve a terminar.",
-                    paso + 1,
+            desde_objecion, ultima_objecion = 0, problema
+            if cierre.estado == "fallida":
+                # Rendirse con una salida a la vista es el error más caro: la tarea sigue abierta.
+                aviso = (
+                    f"El verificador revisó tu cierre y NO acepta la «fallida»: {problema}\nLa tarea sigue "
+                    "abierta y hay tiempo. Haz ahora eso que falta, paso a paso; no vuelvas a terminar sin "
+                    "haberlo intentado."
                 )
-            )
+            else:
+                aviso = (
+                    f"El verificador NO aceptó el cierre: {problema}\nReúne la evidencia que falta o corrige, "
+                    "sin repetir cambios ya aplicados, y vuelve a terminar. Si el cambio ya quedó aplicado y la "
+                    "aplicación lo confirmó, no lo reportes como «fallida»: muestra esa confirmación."
+                )
+            mensajes.append(await self._observacion(aviso, paso + 1))
         return self._cierre_forzado("se agotaron los turnos", MAX_PASOS)
 
     def _cierre_forzado(self, motivo: str, paso: int) -> Cierre:
