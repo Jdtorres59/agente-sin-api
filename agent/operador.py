@@ -232,6 +232,7 @@ class Operador:
         self.capturas: dict[int, str] = {}  # la captura que el operador vio en cada turno, ya codificada
         self.rechazadas: dict[str, tuple[int, str]] = {}  # acción rechazada → (veces, último motivo)
         self.lista_abierta: str | None = None  # captura de la última lista desplegable leída, ya codificada
+        self.caidas_vistas = 0  # reconexiones al escritorio de las que el operador ya fue avisado
         self.diario = Diario()  # valor anterior exacto de cada campo editado, para poder restaurarlo
         self.recuperable = recuperable  # el sub-operador de una reversión no vuelve a recuperar
 
@@ -615,6 +616,14 @@ class Operador:
         self.traza.captura(paso, captura)
         self.capturas[paso] = imagen_a_url(captura)
         pie = f"\nTurno {paso} de {MAX_PASOS}. Quedan {int(self._quedan())} s. Captura actual adjunta."
+        caidas = getattr(self.esc.vnc, "reconexiones", 0)
+        if caidas > self.caidas_vistas:
+            self.caidas_vistas = caidas
+            self.traza.evento(paso=paso, accion="reconexion", veces=caidas)
+            pie += (
+                "\nAVISO: se perdió la conexión con el escritorio y se recuperó. Mira en la captura dónde quedó la "
+                "aplicación antes de seguir, y no repitas un cambio sin comprobar primero si ya se aplicó."
+            )
         return {
             "role": "user",
             "content": [

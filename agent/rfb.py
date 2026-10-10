@@ -72,6 +72,8 @@ class ClienteRFB:
         self.actualizaciones = 0  # cuántas han llegado
         self.area_ultima = 0  # píxeles de la última actualización
         self.cerrado = False
+        self.reconexiones = 0  # veces que hubo que volver a conectar en esta sesión
+        self._a_proposito = False  # la cerró cerrar(), no el servidor
         self._pendiente = False
         self._z = zlib.decompressobj()
         self._ws = None
@@ -141,10 +143,52 @@ class ClienteRFB:
 
     async def cerrar(self) -> None:
         self.cerrado = True
+        self._a_proposito = True
         if self._lector:
             self._lector.cancel()
         if self._ws:
             await self._ws.close()
+
+    async def _reconectar(self, intentos: int = 3, espera: float = 2.0) -> None:
+        """Vuelve a abrir la sesión cuando el servidor cortó la conexión a mitad de una tarea.
+
+        La aplicación sigue en el escritorio: se pide la pantalla completa y se continúa desde lo
+        que se vea. Si no se logra, se propaga el último error y la tarea falla como antes.
+        """
+        MAX_RECONEXIONES = 4
+        if self.reconexiones >= MAX_RECONEXIONES:
+            raise ErrorRFB("La conexión VNC se cerró demasiadas veces")
+        self.reconexiones += 1
+        if self._lector:
+            self._lector.cancel()
+            try:  # que termine antes de seguir: al salir marca la sesión como cerrada
+                await self._lector
+            except (asyncio.CancelledError, Exception):  # noqa: BLE001
+                pass
+        error: Exception | None = None
+        for _ in range(intentos):
+            try:
+                self._z = zlib.decompressobj()
+                self._pendiente = False
+                self.cerrado = False
+                await self.conectar()
+                return
+            except (OSError, ErrorRFB, websockets.WebSocketException, asyncio.TimeoutError) as fallo:
+                error = fallo
+                await asyncio.sleep(espera)
+        raise ErrorRFB(f"No se pudo reconectar al escritorio: {error}")
+
+    async def _enviar(self, datos: bytes) -> None:
+        """Envía un mensaje al servidor; si la conexión se cayó, reconecta y lo envía una vez más."""
+        if self.cerrado and not self._a_proposito:
+            await self._reconectar()
+        try:
+            await self._ws.send(datos)
+        except websockets.ConnectionClosed:
+            if self._a_proposito:
+                raise
+            await self._reconectar()
+            await self._ws.send(datos)
 
     # --- mensajes del servidor ------------------------------------------------------------
 
@@ -205,7 +249,7 @@ class ClienteRFB:
         if incremental and self._pendiente:
             return
         self._pendiente = True
-        await self._ws.send(struct.pack(">BBHHHH", 3, int(incremental), 0, 0, self.ancho, self.alto))
+        await self._enviar(struct.pack(">BBHHHH", 3, int(incremental), 0, 0, self.ancho, self.alto))
 
     async def _esperar_actualizacion(self, timeout: float) -> None:
         inicial = self.actualizaciones
@@ -232,6 +276,8 @@ class ClienteRFB:
         inicio = ultimo = reloj()
         vistas = self.actualizaciones
         hubo = False
+        if self.cerrado and not self._a_proposito:
+            await self._reconectar()
         while not self.cerrado:
             ahora = reloj()
             if ahora - inicio >= maximo:
@@ -257,7 +303,7 @@ class ClienteRFB:
     async def _puntero(self, x: int, y: int, botones: int) -> None:
         x = max(0, min(self.ancho - 1, int(x)))
         y = max(0, min(self.alto - 1, int(y)))
-        await self._ws.send(struct.pack(">BBHH", 5, botones, x, y))
+        await self._enviar(struct.pack(">BBHH", 5, botones, x, y))
 
     async def mover(self, x: int, y: int) -> None:
         await self._puntero(x, y, 0)
@@ -286,7 +332,7 @@ class ClienteRFB:
     # --- teclado --------------------------------------------------------------------------
 
     async def _tecla(self, simbolo: int, abajo: bool) -> None:
-        await self._ws.send(struct.pack(">BBxxI", 4, int(abajo), simbolo))
+        await self._enviar(struct.pack(">BBxxI", 4, int(abajo), simbolo))
 
     async def pulsar(self, combinacion: str) -> None:
         """Pulsa una tecla o combinación: "enter", "ctrl+a", "shift+tab"."""
@@ -317,4 +363,4 @@ class ClienteRFB:
 
     async def fijar_portapapeles(self, texto: str) -> None:
         datos = texto.encode("latin-1", "replace")
-        await self._ws.send(struct.pack(">B3xI", 6, len(datos)) + datos)
+        await self._enviar(struct.pack(">B3xI", 6, len(datos)) + datos)
