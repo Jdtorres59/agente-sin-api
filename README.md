@@ -242,6 +242,32 @@ que repitiera coordenadas fijas fallaría igual.
 | 15:55-16:04 | 4.2 | `da361d7` (en producción) | 5/6 |
 | Tras el despliegue | 4.2 | `juanes/incidente` | Se mide al desplegar |
 
-## Límites conocidos
+## Límites conocidos y qué sigue
 
-Ver [FALLAS.md](FALLAS.md).
+Cada falla con su causa está en [FALLAS.md](FALLAS.md). Lo que más limita al agente hoy, en orden de
+peso según las trazas del set oculto:
+
+1. **El ciclo operador-verificador decide el estado final.** La corrida 1 perdió la mayoría de sus
+   tareas porque el operador se rendía y el ciclo lo aceptaba. Endurecerlo trajo el problema opuesto: un
+   verificador que pide pruebas que la app no da y deja correr el reloj. La regla final es asimétrica:
+   rendirse exige haber hecho lo que el verificador señaló, y una respuesta sostenida tras trabajar la
+   objeción se acepta a la segunda. Es la misma tensión que describe la literatura de agentes con
+   autocrítica (Reflexion, Shinn et al., 2023): la retroalimentación ayuda solo si el ciclo termina con un
+   compromiso.
+2. **Explorar cuesta tiempo.** En las tareas difíciles el agente encuentra los datos, pero gasta la mitad
+   del tiempo abriendo pantallas que no tienen que ver y vuelve a abrir registros ya leídos; cada turno
+   cuesta 3-6 s. OSWorld (Xie et al., 2024) reporta lo mismo: la falla dominante de los agentes de
+   escritorio es el conocimiento operativo de la app, no ver la pantalla. Por eso la memoria guarda el
+   mapa de navegación de cada app, aprendido solo de tareas que se terminaron.
+3. **Una tarea imposible se alarga.** Probar que algo no existe pide buscarlo varias veces, y el
+   verificador puede pedir más. Si el tiempo se acaba, el cierre conserva la razón que el agente ya había
+   dado.
+
+Con un día más:
+
+- **Plan de subobjetivos desde la comprensión** (como el planificador jerárquico de Agent S, Agashe et
+  al., 2024): 3 a 7 pasos generales antes de operar, para no explorar a ciegas.
+- **Recetas que crucen tareas**: hoy una receta repite la navegación de una tarea del mismo tipo; el
+  siguiente paso es componer rutas aprendidas para tipos de tarea nuevos.
+- **Más casos difíciles en la suite** (acciones en cadena, datos que dependen de otro registro), que es
+  donde la corrida 1 sacó 0 de 16.
