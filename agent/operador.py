@@ -120,8 +120,8 @@ HERRAMIENTAS = [
         "leer_lista",
         "Lee la tabla de la lista en pantalla recorriendo TODAS sus páginas y la guarda para `contar`. Llámala "
         "estando en la primera página, con los filtros ya aplicados. siguiente_x y siguiente_y son el centro, "
-        "tal como se ve en la captura, del control que pasa a la página siguiente. Si la lista no tiene ese "
-        "control, pon -1 en ambos.",
+        "tal como se ve en la captura, del control que pasa a la página siguiente. Pon -1 en ambos SOLO si en la "
+        "captura no hay ningún control para pasar de página: si lo hay y pones -1, la lectura queda incompleta.",
         {"siguiente_x": {"type": "integer"}, "siguiente_y": {"type": "integer"}},
         ["siguiente_x", "siguiente_y"],
     ),
@@ -539,13 +539,34 @@ class Operador:
             if (x, y) != (-1, -1) and not (25 <= x <= ancho - 25 and 10 <= y <= alto - 10):
                 return "coordenadas inválidas: da el centro real del control de página siguiente, o -1 y -1 si no hay"
             siguiente = None if (x, y) == (-1, -1) else (x, y)
+            if siguiente and cerca_de_borde(self.esc.vnc.captura(), x, y):
+                return (
+                    f"NO ejecutada: el punto ({x}, {y}) está en el borde de un control. Da el centro del control "
+                    "de página siguiente tal como se ve en la captura."
+                )
             self.tabla, motivo = await self.esc.leer_lista(siguiente)
             if not self.tabla.filas:
                 return f"no se encontraron filas de tabla ({motivo}). Usa leer_pantalla."
+            if siguiente is None:
+                aviso = (
+                    "Solo se leyó la página que estaba en pantalla. Si en la captura hay un control de página "
+                    "siguiente, esta lectura está incompleta: vuelve a la primera página (aplica de nuevo el filtro) "
+                    "y llama leer_lista con el centro de ese control."
+                )
+            elif "ya leída" in motivo:
+                aviso = (
+                    "Lectura NO fiable: no la uses. Vuelve a la primera página (aplica de nuevo el filtro) y llama "
+                    "leer_lista con el centro exacto del control de página siguiente."
+                )
+            else:
+                aviso = (
+                    "La pantalla quedó en la última página leída: si en la captura el control de página siguiente "
+                    "sigue activo, la lectura quedó incompleta; repítela desde la primera página (aplica de nuevo "
+                    "el filtro)."
+                )
             return (
                 f"{len(self.tabla.filas)} filas en {self.tabla.paginas} página(s); se detuvo porque {motivo}. "
-                "La pantalla quedó en la última página leída: si en la captura el control de página siguiente "
-                f"sigue activo, la lectura quedó incompleta y debes repetirla.\n{self.tabla.como_texto()}"
+                f"{aviso}\n{self.tabla.como_texto()}"
             )
         if nombre == "contar":
             if self.tabla is None:

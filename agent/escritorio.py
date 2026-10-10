@@ -290,6 +290,7 @@ class Escritorio:
         # leer_pantalla deja el ratón en una zona vacía: el control se captura sin resaltado.
         plantilla = await self._recorte_estable((x - medio_ancho, y - medio_alto, x + medio_ancho, y + medio_alto))
         motivo = f"se alcanzó el máximo de {max_paginas} páginas"
+        vistas = {texto}  # una página que vuelve a salir significa que el control no avanza
         for _ in range(max_paginas - 1):
             donde = await self._ubicar_sin_prisa(plantilla, x, medio_alto)
             if donde is None:
@@ -301,6 +302,10 @@ class Escritorio:
             if nuevo is None or nuevo == texto:
                 motivo = "la página dejó de cambiar"
                 break
+            if nuevo in vistas:
+                motivo = "volvió a salir una página ya leída: ese punto no es el control de página siguiente"
+                break
+            vistas.add(nuevo)
             texto = nuevo
             if tabla.agregar_pagina(texto) == 0:
                 motivo = "la pantalla dejó de mostrar filas"

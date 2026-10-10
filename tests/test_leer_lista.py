@@ -63,3 +63,15 @@ def test_a_half_drawn_template_does_not_cut_the_list_short():
     """Si el control se captura a medio dibujar al empezar, la plantilla no coincide nunca más."""
     tabla, _ = _leer(sucias=0, al_inicio=1)
     assert tabla.paginas == PAGINAS and len(tabla.filas) == 12
+
+
+def test_a_control_that_cycles_between_pages_does_not_duplicate_rows():
+    """Si el punto dado alterna entre dos páginas, la lectura se detiene en vez de sumar filas repetidas."""
+
+    class Alterna(FakeVnc):
+        async def clic(self, x, y, veces=1, boton=1):
+            self.pagina = 2 if self.pagina == 1 else 1
+
+    esc = EscritorioDePrueba(Alterna(sucias=0))
+    tabla, motivo = asyncio.run(esc.leer_lista(SIGUIENTE))
+    assert tabla.paginas == 2 and len(tabla.filas) == 6 and "ya leída" in motivo
