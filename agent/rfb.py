@@ -12,7 +12,7 @@ import websockets
 from Crypto.Cipher import DES
 from PIL import Image
 
-RAW, ZLIB, DESKTOP_SIZE = 0, 6, -223
+RAW, ZLIB, DESKTOP_SIZE, CURSOR = 0, 6, -223, -239
 
 TECLAS = {
     "enter": 0xFF0D, "tab": 0xFF09, "escape": 0xFF1B, "backspace": 0xFF08, "delete": 0xFFFF,
@@ -129,7 +129,9 @@ class ClienteRFB:
         # 32 bpp, little-endian, rojo en el bit 16: en el cable llega como B, G, R, relleno.
         formato = struct.pack(">BBBBHHHBBB3x", 32, 24, 0, 1, 255, 255, 255, 16, 8, 0)
         await self._ws.send(struct.pack(">B3x", 0) + formato)
-        codificaciones = [ZLIB, RAW, DESKTOP_SIZE]
+        # CURSOR: el servidor manda la forma del puntero aparte y deja de dibujarlo en la pantalla,
+        # así las capturas, las anclas y la búsqueda de controles no llevan la flecha encima.
+        codificaciones = [ZLIB, RAW, DESKTOP_SIZE, CURSOR]
         await self._ws.send(struct.pack(f">BxH{len(codificaciones)}i", 2, len(codificaciones), *codificaciones))
 
     @staticmethod
@@ -181,6 +183,9 @@ class ClienteRFB:
                 self.ancho, self.alto = w, h
                 self.imagen = Image.new("RGB", (w, h))
                 area += w * h
+                continue
+            if codificacion == CURSOR:  # forma del puntero: píxeles y máscara; no se dibuja
+                await f.leer(w * h * 4 + ((w + 7) // 8) * h)
                 continue
             if codificacion == RAW:
                 datos = await f.leer(w * h * 4)

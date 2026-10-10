@@ -11,7 +11,7 @@ from PIL import Image, ImageChops
 
 from . import prompts
 from .contracts import Step
-from .escritorio import Escritorio
+from .escritorio import Escritorio, cerca_de_borde
 from .modelos import Modelos, imagen_a_url
 from .recuperacion import Diario, recuperar
 from .tablas import Tabla
@@ -239,6 +239,13 @@ class Operador:
 
     async def _ejecutar(self, nombre: str, a: dict) -> str:
         cambio = lambda hubo: "la pantalla cambió" if hubo else "la pantalla NO cambió (puede no haber tenido efecto)"  # noqa: E731
+        if nombre in ("clic", "rellenar", "leer_campo") and cerca_de_borde(self.esc.vnc.captura(), a["x"], a["y"]):
+            # Un clic pegado al borde puede caer en el control vecino: no se ejecuta.
+            self.traza.evento(paso=self.paso, accion="borde", x=a["x"], y=a["y"])
+            return (
+                f"NO ejecutada: el punto ({a['x']}, {a['y']}) está en el borde de un control. "
+                "Apunta al centro del control que quieres."
+            )
         if nombre == "clic" and not a.get("cambia_datos") and _PARECE_CAMBIO.search(a.get("objetivo", "")):
             a["cambia_datos"] = True
         revisada = False

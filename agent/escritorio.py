@@ -6,12 +6,52 @@ antes de escribir, releer lo escrito y distinguir un portapapeles vacío de uno 
 
 import asyncio
 
+import numpy as np
 from PIL import Image, ImageChops
 
 from .rfb import ClienteRFB
 from .tablas import Tabla
 
 PAUSA_TECLA = 0.08  # por debajo de esto el servidor pierde caracteres acentuados
+
+
+def _racha(marcas: np.ndarray, centro: int, holgura: int = 2) -> int:
+    """Longitud de la racha más larga de True que pasa a `holgura` posiciones o menos de `centro`."""
+    mejor, inicio = 0, None
+    for i, marca in enumerate(list(marcas) + [False]):
+        if marca and inicio is None:
+            inicio = i
+        elif not marca and inicio is not None:
+            if inicio - holgura <= centro <= i - 1 + holgura:
+                mejor = max(mejor, i - inicio)
+            inicio = None
+    return mejor
+
+
+def cerca_de_borde(imagen: Image.Image, x: int, y: int, margen: int = 5, largo: int = 18, contraste: int = 28) -> bool:
+    """True si (x, y) está pegado al borde de un control.
+
+    Un borde es una línea recta de al menos `largo` píxeles con salto de brillo, a `margen` píxeles
+    o menos del punto y que pasa a su lado. Los trazos de las letras y el cursor de texto son más
+    cortos y no cuentan.
+    Un clic ahí puede caer en el control vecino, así que es mejor pedirle al modelo que apunte al centro.
+    """
+    if not (0 <= x < imagen.width and 0 <= y < imagen.height):
+        return False
+    radio = 26
+    izquierda, arriba = max(0, x - radio), max(0, y - radio)
+    recorte = imagen.crop((izquierda, arriba, min(imagen.width, x + radio + 1), min(imagen.height, y + radio + 1)))
+    gris = np.asarray(recorte.convert("L"), dtype=np.int16)
+    cx, cy = x - izquierda, y - arriba
+    saltos_h = np.abs(np.diff(gris, axis=1)) > contraste  # bordes verticales: entre la columna j y la j+1
+    saltos_v = np.abs(np.diff(gris, axis=0)) > contraste  # bordes horizontales: entre la fila i y la i+1
+    for j in range(max(0, cx - margen), min(saltos_h.shape[1], cx + margen)):
+        if _racha(saltos_h[:, j], cy) >= largo:
+            return True
+    for i in range(max(0, cy - margen), min(saltos_v.shape[0], cy + margen)):
+        if _racha(saltos_v[i, :], cx) >= largo:
+            return True
+    return False
 
 
 class Escritorio:

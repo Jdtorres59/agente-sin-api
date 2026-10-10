@@ -28,12 +28,12 @@ class FakeEsc:
     """Un formulario con un campo. La primera escritura pierde el último carácter, como pasa por VNC."""
 
     def __init__(self):
-        self.vnc = FakeVnc(Image.new("RGB", (200, 120), "white"))
+        self.vnc = FakeVnc(Image.new("RGB", (640, 480), "white"))
         self.form = {CAMPO: ANTERIOR}
         self.guardado = dict(self.form)
         self.escrituras = 0
 
-    tamano = (200, 120)
+    tamano = (640, 480)
 
     async def captura(self) -> Image.Image:
         return self.vnc.pantalla
